@@ -1,9 +1,11 @@
 <script setup lang="ts">
+
 </script>
 
 <template>
-  <router-view />
+<H1>outbound</H1>
 </template>
 
 <style scoped>
+
 </style>
