@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import router from "@/router";
 function handleLogin() {
-  router.push('/home');
+  router.push('/dashboard');
 }
 </script>
 

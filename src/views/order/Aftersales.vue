@@ -3,7 +3,7 @@
 </script>
 
 <template>
-<h1>Returns</h1>
+<h1>Records</h1>
 </template>
 
 <style scoped>

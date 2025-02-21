@@ -10,19 +10,20 @@ const router = createRouter({
     },
     // 仓库管理
     {
-      path: '/home',
-      name: 'home',
-      component: () => import('@/views/Home.vue'),
+      path: '/dashboard',
+      redirect: '/welcome',
+      name: 'dashboard',
+      component: () => import('@/views/Dashboard.vue'),
       children: [{
+        path: '/welcome',
+        name: 'welcome',
+        component: () => import('../views/Welcome.vue')
+      },
+          {
         path: '/warehouse/list',
         name: 'warehouseList',
         component: () => import('../views/warehouse/List.vue')
       },
-        {
-          path: '/warehouse/sections',
-          name: 'warehouseSections',
-          component: () => import('../views/warehouse/Sections.vue')
-        },
         // 库存管理
         {
           path: '/inventory/query',
@@ -39,6 +40,11 @@ const router = createRouter({
           name: 'inventoryOutbound',
           component: () => import('../views/inventory/Outbound.vue')
         },
+        {
+          path: '/inventory/transfer',
+          name: 'inventoryTransfer',
+          component: () => import('../views/inventory/Transfer.vue')
+        },
         // 订单管理
         {
           path: '/order/list',
@@ -46,9 +52,9 @@ const router = createRouter({
           component: () => import('../views/order/List.vue')
         },
         {
-          path: '/order/returns',
-          name: 'orderReturns',
-          component: () => import('../views/order/Returns.vue')
+          path: '/order/aftersales',
+          name: 'orderAftersales',
+          component: () => import('../views/order/Aftersales.vue')
         },
         // 系统管理
         {
@@ -60,11 +66,6 @@ const router = createRouter({
           path: '/system/roles',
           name: 'systemRoles',
           component: () => import('../views/system/Roles.vue')
-        },
-        {
-          path: '/system/logs',
-          name: 'systemLogs',
-          component: () => import('../views/system/Logs.vue')
         }]
     },
 

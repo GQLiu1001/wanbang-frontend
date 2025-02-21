@@ -3,9 +3,13 @@
 </script>
 
 <template>
-<h1>warehouse List</h1>
+    <img src="/src/assets/warehouselist.png" class="pic">
 </template>
 
 <style scoped>
 
+.pic {
+    width: 100%;
+    height: 80vh;
+}
 </style>

@@ -3,7 +3,7 @@
 </script>
 
 <template>
-<h1>Sections</h1>
+<H1>Transfer</H1>
 </template>
 
 <style scoped>
