@@ -104,23 +104,23 @@ onMounted(() => {
     <el-row :gutter="20" class="charts-section">
       <!-- Sales Trend Chart -->
       <el-col :span="16">
-        <el-card shadow="hover">
+        <el-card shadow="hover" class="rounded-card">
           <section ref="salesChartRef" class="sales-chart"></section>
         </el-card>
       </el-col>
 
       <!-- Top Products Table -->
       <el-col :span="8">
-        <el-card shadow="hover">
+        <el-card shadow="hover" class="rounded-card">
           <h3>最火爆卖品</h3>
           <el-table
               :data="topProducts"
-              style="width: 100vw"
+              style="width: 100%"
               border
-              height="400"
+              height="350"
           >
-            <el-table-column prop="model_number" label="产品型号"  />
-            <el-table-column prop="sales" label="销量"  />
+            <el-table-column prop="model_number" label="产品型号" />
+            <el-table-column prop="sales" label="销量" />
           </el-table>
         </el-card>
       </el-col>
@@ -140,6 +140,7 @@ onMounted(() => {
 .sales-chart {
   width: 100%;
   height: 400px;
+
 }
 
 h1 {
@@ -149,6 +150,14 @@ h1 {
 
 h3 {
   text-align: center;
+  height: auto;
   margin-bottom: 10px;
 }
+
+/* 添加圆角样式 */
+.rounded-card {
+  border-radius: 50px; /* 设置圆角大小，可以根据需要调整 */
+  overflow: hidden; /* 确保内容不会溢出圆角边界 */
+}
+
 </style>
