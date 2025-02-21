@@ -64,12 +64,16 @@ onUnmounted(() => {
               <el-icon><Search /></el-icon>
               <template #title>库存查询</template>
             </el-menu-item>
-            <el-menu-item index="/inventory/inbound">
+            <el-menu-item index="/inventory/inboundpost">
               <el-icon><Upload /></el-icon>
+              <template #title>提交入库</template>
+            </el-menu-item>
+            <el-menu-item index="/inventory/inboundlist">
+              <el-icon><Monitor /></el-icon>
               <template #title>入库记录</template>
             </el-menu-item>
             <el-menu-item index="/inventory/outbound">
-              <el-icon><Download /></el-icon>
+              <el-icon><Monitor /></el-icon>
               <template #title>出库记录</template>
             </el-menu-item>
             <el-menu-item index="/inventory/transfer">
@@ -83,8 +87,12 @@ onUnmounted(() => {
               <el-icon><Document /></el-icon>
               <span>订单模块</span>
             </template>
-            <el-menu-item index="/order/list">
+            <el-menu-item index="/order/orderpost">
               <el-icon><FolderChecked /></el-icon>
+              <template #title>创建订单</template>
+            </el-menu-item>
+            <el-menu-item index="/order/orderlist">
+              <el-icon><Van /></el-icon>
               <template #title>订单管理</template>
             </el-menu-item>
             <el-menu-item index="/order/aftersales">

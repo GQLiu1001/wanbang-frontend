@@ -31,9 +31,14 @@ const router = createRouter({
           component: () => import('../views/inventory/Query.vue')
         },
         {
-          path: '/inventory/inbound',
+          path: '/inventory/inboundlist',
           name: 'inventoryInbound',
-          component: () => import('../views/inventory/Inbound.vue')
+          component: () => import('../views/inventory/InboundList.vue')
+        },
+        {
+          path: '/inventory/inboundpost',
+          name: 'inventoryPost',
+          component: () => import('../views/inventory/InboundPost.vue')
         },
         {
           path: '/inventory/outbound',
@@ -47,7 +52,12 @@ const router = createRouter({
         },
         // 订单管理
         {
-          path: '/order/list',
+          path: '/order/orderpost',
+          name: 'orderPost',
+          component: () => import('../views/order/Post.vue')
+        },
+        {
+          path: '/order/orderlist',
           name: 'orderList',
           component: () => import('../views/order/List.vue')
         },
