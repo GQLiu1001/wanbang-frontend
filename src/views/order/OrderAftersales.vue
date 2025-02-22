@@ -15,8 +15,9 @@ const mockRecord = {
   operator_id: '1',
   order_remark: '测试订单',
   order_create_time: '2025-02-21 10:00:00',
-  aftersale_type: null,
-  aftersale_status: null
+  order_update_time: '2025-02-21 10:00:00',
+  aftersale_type: null, // 确保包含售后类型
+  aftersale_status: null // 确保包含售后状态
 }
 
 // Store order records and search state
@@ -27,14 +28,14 @@ const searchDateRange = ref<[Date, Date] | []>([])
 // Dialog control for aftersale
 const aftersaleDialogVisible = ref(false)
 const aftersaleForm = ref({
-  aftersale_type: null,       // 售后类型
-  aftersale_status: null,     // 售后状态
-  adjusted_quantity: '',      // 调整后数量
-  adjusted_amount: '',        // 调整后价格
-  resolution_result: '',      // 处理结果说明
-  aftersale_operator: '',     // 售后处理人ID
-  create_time: '',            // 创建时间
-  order_no: ''                // 添加 order_no 用于保存时关联订单
+  order_no: '',                // 订单编号
+  aftersale_type: null,        // 售后类型
+  aftersale_status: null,      // 售后状态
+  quantity_change: 0,          // 数量变化（负数退货，正数补货）
+  amount_change: 0,            // 金额变化（负数退款，正数补款）
+  resolution_result: '',       // 处理结果说明
+  aftersale_operator: '',      // 售后处理人ID
+  create_time: ''              // 创建时间
 })
 
 // Define picker options for el-date-picker
@@ -69,7 +70,6 @@ const pickerOptions = {
     }
   ],
   disabledDate(time: Date) {
-    // 可选范围：过去10年到未来10年
     const now = new Date()
     const tenYearsAgo = now.getFullYear() - 10
     const tenYearsLater = now.getFullYear() + 10
@@ -80,7 +80,14 @@ const pickerOptions = {
 // Fetch order records from API with fallback to mock data
 const fetchOrderRecords = async () => {
   try {
-    const response = await fetch('/api/order/list', {
+    const url = new URL('/api/orders', window.location.origin)
+    if (searchDateRange.value.length === 2) {
+      const [startDate, endDate] = searchDateRange.value
+      url.searchParams.append('start_time', new Date(startDate).toISOString().slice(0, 19).replace('T', ' '))
+      url.searchParams.append('end_time', new Date(endDate).toISOString().slice(0, 19).replace('T', ' '))
+    }
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     })
@@ -88,7 +95,7 @@ const fetchOrderRecords = async () => {
       throw new Error('API request failed')
     }
     const data = await response.json()
-    const records = (data.records && data.records.length > 0) ? data.records : [mockRecord]
+    const records = (data.data?.items && data.data.items.length > 0) ? data.data.items : [mockRecord]
     orderRecords.value = records
     filteredRecords.value = records // Initialize filtered records
   } catch (error) {
@@ -101,22 +108,7 @@ const fetchOrderRecords = async () => {
 
 // Filter records by date range
 const filterByDateRange = () => {
-  if (searchDateRange.value.length === 0) {
-    filteredRecords.value = [...orderRecords.value]
-    return
-  }
-  const [startDate, endDate] = searchDateRange.value
-  const startTime = new Date(startDate).setHours(0, 0, 0, 0)
-  const endTime = new Date(endDate).setHours(23, 59, 59, 999)
-
-  filteredRecords.value = orderRecords.value.filter(record => {
-    const recordTime = new Date(record.order_create_time).getTime()
-    return recordTime >= startTime && recordTime <= endTime
-  })
-
-  if (filteredRecords.value.length === 0) {
-    ElMessage.info('所选日期范围内没有匹配的记录')
-  }
+  fetchOrderRecords() // 直接调用API重新获取数据
 }
 
 // Load data on mount
@@ -127,40 +119,45 @@ onMounted(() => {
 // Handle aftersale
 const handleAftersale = (row: any) => {
   aftersaleForm.value = {
-    aftersale_type: row.aftersale_type || null,
-    aftersale_status: row.aftersale_status || null,
-    adjusted_quantity: row.adjusted_quantity || row.quantity || '',
-    adjusted_amount: row.adjusted_amount || row.total_amount || '',
+    order_no: row.order_no,
+    aftersale_type: null,
+    aftersale_status: null,
+    quantity_change: 0,
+    amount_change: 0,
     resolution_result: '',
     aftersale_operator: '',
-    create_time: new Date().toLocaleString(),
-    order_no: row.order_no // 绑定订单编号
+    create_time: new Date().toLocaleString()
   }
   aftersaleDialogVisible.value = true
 }
 
 const saveAftersale = async () => {
   try {
-    const response = await fetch(`/api/order/aftersale/${aftersaleForm.value.order_no}`, {
+    const response = await fetch('/api/aftersales', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(aftersaleForm.value),
     })
-    if (!response.ok) throw new Error('售后处理失败')
-    ElMessage.success('售后处理成功')
-    aftersaleDialogVisible.value = false
-    await fetchOrderRecords()
-    filterByDateRange() // Re-apply filter after update
+    if (!response.ok) throw new Error('售后记录创建失败')
+    const data = await response.json()
+    if (data.code === 201) {
+      ElMessage.success('售后记录创建成功')
+      aftersaleDialogVisible.value = false
+      await fetchOrderRecords()
+      filterByDateRange() // Re-apply filter after update
+    } else {
+      throw new Error('响应状态异常')
+    }
   } catch (error) {
-    console.error('Failed to process aftersale:', error)
-    ElMessage.error('售后处理失败，请稍后重试')
+    console.error('Failed to create aftersale record:', error)
+    ElMessage.error('售后记录创建失败，请稍后重试')
   }
 }
 
 // Clear filter
 const clearFilter = () => {
   searchDateRange.value = []
-  filterByDateRange()
+  fetchOrderRecords()
 }
 
 // Aftersale type and status mapping
@@ -211,14 +208,14 @@ const aftersaleStatusMap = {
       <el-table-column label="购买数量" width="120">
         <template #default="{ row }">
           <span>
-            {{ row.aftersale_type ? row.adjusted_quantity : row.quantity }}
+            {{ row.aftersale_type ? row.adjusted_quantity || row.quantity : row.quantity }}
           </span>
         </template>
       </el-table-column>
       <el-table-column label="订单金额" width="150">
         <template #default="{ row }">
           <span>
-            {{ row.aftersale_type ? row.adjusted_amount : row.total_amount }}
+            {{ row.aftersale_type ? row.adjusted_amount || row.total_amount : row.total_amount }}
           </span>
         </template>
       </el-table-column>
@@ -228,6 +225,11 @@ const aftersaleStatusMap = {
       <el-table-column prop="order_create_time" label="创建时间" width="180">
         <template #default="{ row }">
           {{ new Date(row.order_create_time).toLocaleString() }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="order_update_time" label="更新时间" width="180">
+        <template #default="{ row }">
+          {{ new Date(row.order_update_time).toLocaleString() }}
         </template>
       </el-table-column>
       <el-table-column label="售后类型" width="150">
@@ -240,7 +242,7 @@ const aftersaleStatusMap = {
           {{ row.aftersale_status ? aftersaleStatusMap[row.aftersale_status] : '无' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150">
+      <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
           <el-button type="warning" size="small" @click="handleAftersale(row)">售后</el-button>
         </template>
@@ -251,7 +253,7 @@ const aftersaleStatusMap = {
     </div>
 
     <!-- Aftersale Dialog -->
-    <el-dialog v-model="aftersaleDialogVisible" title="售后处理" width="30%">
+    <el-dialog v-model="aftersaleDialogVisible" title="创建售后记录" width="30%">
       <el-form :model="aftersaleForm" label-width="120px">
         <el-form-item label="订单编号">
           <el-input v-model="aftersaleForm.order_no" disabled />
@@ -268,17 +270,17 @@ const aftersaleStatusMap = {
             <el-option label="已解决" :value="2" />
           </el-select>
         </el-form-item>
-        <el-form-item label="调整后数量" required>
-          <el-input v-model.number="aftersaleForm.adjusted_quantity" type="number" />
+        <el-form-item label="数量变化" required>
+          <el-input v-model.number="aftersaleForm.quantity_change" type="number" placeholder="负数退货，正数补货" />
         </el-form-item>
-        <el-form-item label="调整后价格" required>
-          <el-input v-model.number="aftersaleForm.adjusted_amount" type="number" step="0.01" />
+        <el-form-item label="金额变化" required>
+          <el-input v-model.number="aftersaleForm.amount_change" type="number" step="0.01" placeholder="负数退款，正数补款" />
         </el-form-item>
         <el-form-item label="处理结果说明">
           <el-input v-model="aftersaleForm.resolution_result" type="textarea" :rows="3" />
         </el-form-item>
         <el-form-item label="售后处理人" required>
-          <el-input v-model="aftersaleForm.aftersale_operator" />
+          <el-input v-model="aftersaleForm.aftersale_operator" placeholder="请输入处理人ID" />
         </el-form-item>
         <el-form-item label="创建时间">
           <el-input v-model="aftersaleForm.create_time" disabled />
@@ -301,14 +303,6 @@ const aftersaleStatusMap = {
   text-align: center;
   padding: 20px;
   color: #666;
-}
-
-.positive {
-  color: green;
-}
-
-.negative {
-  color: red;
 }
 
 .search-section {

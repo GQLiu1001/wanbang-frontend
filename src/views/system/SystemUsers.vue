@@ -7,7 +7,7 @@ const userForm = ref({
   avatar: '',     // 头像URL
   username: '',   // 用户名
   password: '',   // 密码
-  email: ''       // 邮箱
+  phone: ''       // 手机号
 })
 
 // Handle avatar upload
@@ -29,10 +29,10 @@ const submitUserInfo = async () => {
       return
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(userForm.value.email)) {
-      ElMessage.error('请输入有效的邮箱地址')
+    // 验证手机号格式
+    const phoneRegex = /^1[3-9]\d{9}$/
+    if (!phoneRegex.test(userForm.value.phone)) {
+      ElMessage.error('请输入有效的手机号码')
       return
     }
 
@@ -62,7 +62,7 @@ const resetForm = () => {
     avatar: '',
     username: '',
     password: '',
-    email: ''
+    phone: ''
   }
 }
 </script>
@@ -98,8 +98,8 @@ const resetForm = () => {
             show-password
         />
       </el-form-item>
-      <el-form-item label="邮箱" required>
-        <el-input v-model="userForm.email" placeholder="请输入邮箱" />
+      <el-form-item label="电话" required>
+        <el-input v-model="userForm.phone" placeholder="请输入电话" />
       </el-form-item>
 
       <!-- Buttons -->

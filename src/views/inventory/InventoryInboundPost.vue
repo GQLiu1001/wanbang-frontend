@@ -2,41 +2,64 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 
-// Form data
+// Form data（与inventory_item表字段一致）
 const formData = ref({
-  productModel: '',      // 产品型号
+  model_number: '',      // 产品型号
   manufacturer: '',      // 制造厂商
-  specification: '',     // 规格
-  surface: '',          // 表面处理
-  category: '',         // 分类
-  warehouseCode: '',    // 仓库编码
-  totalPieces: '',      // 总片数
-  boxCount: '',         // 箱数
-  piecesPerBox: '',     // 每箱片数
-  unitPrice: ''         // 单片价格
+  specification: '',     // 规格（如600x600mm）
+  surface: <number | null>null, // 表面处理（1=抛光, 2=哑光, etc.）
+  category: <number | null>null, // 分类（1=墙砖, 2=地砖）
+  warehouse_num: <number | ''>'', // 仓库编码
+  total_pieces: <number | ''>'', // 总片数
+  pieces_per_box: <number | ''>'', // 每箱片数
+  price_per_piece: <number | ''>'', // 单片价格（单位：元）
+  remark: ''            // 备注（可选）
 })
 
-// Options for category and surface treatment
-const categoryOptions = ['墙砖', '地砖']
-const surfaceOptions = ['抛光', '哑光', '釉面', '通体大理石', '微晶石', '岩板']
+// Options for category and surface treatment（与数据库枚举一致）
+const categoryOptions = [
+  { label: '墙砖', value: 1 },
+  { label: '地砖', value: 2 }
+]
+const surfaceOptions = [
+  { label: '抛光', value: 1 },
+  { label: '哑光', value: 2 },
+  { label: '釉面', value: 3 },
+  { label: '通体大理石', value: 4 },
+  { label: '微晶石', value: 5 },
+  { label: '岩板', value: 6 }
+]
 
-// Submit function
+// Submit function（匹配接口 /api/inventory/items）
 const submitInventory = async () => {
   try {
     // Validate required fields
-    const requiredFields = [
-      'productModel', 'manufacturer', 'specification', 'surface', 'category',
-      'warehouseCode', 'totalPieces', 'boxCount', 'piecesPerBox', 'unitPrice'
-    ]
-    for (const field of requiredFields) {
-      if (!formData.value[field]) {
-        ElMessage.error('请填写所有必填字段')
+    const requiredFields = {
+      model_number: '产品型号',
+      manufacturer: '制造厂商',
+      specification: '规格',
+      surface: '表面处理',
+      category: '产品分类',
+      warehouse_num: '仓库编码',
+      total_pieces: '总片数',
+      pieces_per_box: '每箱片数',
+      price_per_piece: '单片价格'
+    }
+    for (const [field, label] of Object.entries(requiredFields)) {
+      if (!formData.value[field as keyof typeof formData.value]) {
+        ElMessage.error(`请填写${label}`)
         return
       }
     }
 
-    // Simulated API call - replace with your actual backend endpoint
-    const response = await fetch('/api/inventory/add', {
+    // Validate specification format (e.g., 600x600mm)
+    if (!/^[0-9]+x[0-9]+mm$/.test(formData.value.specification)) {
+      ElMessage.error('规格格式错误，应为如“600x600mm”')
+      return
+    }
+
+    // API call
+    const response = await fetch('/api/inventory/items', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -48,6 +71,7 @@ const submitInventory = async () => {
       throw new Error('提交失败')
     }
 
+    const data = await response.json()
     ElMessage.success('入库记录提交成功')
     // Reset form after successful submission
     resetForm()
@@ -60,16 +84,16 @@ const submitInventory = async () => {
 // Reset form function
 const resetForm = () => {
   formData.value = {
-    productModel: '',
+    model_number: '',
     manufacturer: '',
     specification: '',
-    surface: '',
-    category: '',
-    warehouseCode: '',
-    totalPieces: '',
-    boxCount: '',
-    piecesPerBox: '',
-    unitPrice: ''
+    surface: null,
+    category: null,
+    warehouse_num: '',
+    total_pieces: '',
+    pieces_per_box: '',
+    price_per_piece: '',
+    remark: ''
   }
 }
 </script>
@@ -82,7 +106,7 @@ const resetForm = () => {
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="产品型号" required>
-            <el-input v-model="formData.productModel" placeholder="请输入产品型号" />
+            <el-input v-model="formData.model_number" placeholder="请输入产品型号" />
           </el-form-item>
         </el-col>
         <el-col :span="12">
@@ -95,12 +119,12 @@ const resetForm = () => {
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="规格" required>
-            <el-input v-model="formData.specification" placeholder="请输入规格" />
+            <el-input v-model="formData.specification" placeholder="请输入规格（如600x600mm）" />
           </el-form-item>
         </el-col>
         <el-col :span="12">
           <el-form-item label="仓库编码" required>
-            <el-input v-model="formData.warehouseCode" placeholder="请输入仓库编码" />
+            <el-input v-model.number="formData.warehouse_num" placeholder="请输入仓库编码" type="number" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -111,11 +135,11 @@ const resetForm = () => {
             <el-radio-group v-model="formData.category">
               <el-radio
                   v-for="item in categoryOptions"
-                  :key="item"
-                  :label="item"
+                  :key="item.value"
+                  :label="item.value"
                   class="radio-item"
               >
-                {{ item }}
+                {{ item.label }}
               </el-radio>
             </el-radio-group>
           </el-form-item>
@@ -125,11 +149,11 @@ const resetForm = () => {
             <el-radio-group v-model="formData.surface">
               <el-radio
                   v-for="item in surfaceOptions"
-                  :key="item"
-                  :label="item"
+                  :key="item.value"
+                  :label="item.value"
                   class="radio-item"
               >
-                {{ item }}
+                {{ item.label }}
               </el-radio>
             </el-radio-group>
           </el-form-item>
@@ -139,25 +163,25 @@ const resetForm = () => {
       <el-row :gutter="20">
         <el-col :span="8">
           <el-form-item label="总片数" required>
-            <el-input v-model.number="formData.totalPieces" placeholder="请输入总片数" type="number" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="箱数" required>
-            <el-input v-model.number="formData.boxCount" placeholder="请输入箱数" type="number" />
+            <el-input v-model.number="formData.total_pieces" placeholder="请输入总片数" type="number" />
           </el-form-item>
         </el-col>
         <el-col :span="8">
           <el-form-item label="每箱片数" required>
-            <el-input v-model.number="formData.piecesPerBox" placeholder="请输入每箱片数" type="number" />
+            <el-input v-model.number="formData.pieces_per_box" placeholder="请输入每箱片数" type="number" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="单片价格" required>
+            <el-input v-model.number="formData.price_per_piece" placeholder="请输入单片价格" type="number" step="0.01" />
           </el-form-item>
         </el-col>
       </el-row>
 
       <el-row :gutter="20">
-        <el-col :span="12">
-          <el-form-item label="单片价格" required>
-            <el-input v-model.number="formData.unitPrice" placeholder="请输入单片价格" type="number" />
+        <el-col :span="24">
+          <el-form-item label="备注">
+            <el-input v-model="formData.remark" placeholder="请输入备注（可选）" type="textarea" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -172,7 +196,7 @@ const resetForm = () => {
 
 <style scoped>
 .form-container {
-padding: 40px;
+  padding: 40px;
 }
 
 .radio-item {

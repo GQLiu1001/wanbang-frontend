@@ -4,18 +4,26 @@ import { ElMessage } from 'element-plus'
 
 // 用户列表数据
 interface User {
-  id: number
   username: string
-  roleId: number
+  phone: string
+  role_key: string
+  description: string
 }
 
+// Store user list and pagination state
 const userList = ref<User[]>([])
-const isSuperAdmin = ref(false) // 是否为超级管理员
+const page = ref(1) // 当前页码
+const size = ref(10) // 每页条数
+const total = ref(0) // 总记录数
 
-// 获取用户列表（仅超级管理员）
+// Fetch user list with pagination
 const fetchUserList = async () => {
   try {
-    const response = await fetch('/api/user/list', {
+    const url = new URL('/api/users', window.location.origin)
+    url.searchParams.append('page', page.value.toString())
+    url.searchParams.append('size', size.value.toString())
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -24,95 +32,64 @@ const fetchUserList = async () => {
     if (!response.ok) {
       throw new Error('获取用户列表失败')
     }
-    userList.value = await response.json()
+    const data = await response.json()
+    if (data.code === 200 && data.data?.items) {
+      userList.value = data.data.items
+      total.value = data.data.total || 0
+    } else {
+      throw new Error('数据格式异常')
+    }
   } catch (error) {
     console.error('Failed to fetch user list:', error)
-    ElMessage.error('获取用户列表失败')
+    ElMessage.error('获取用户列表失败，请稍后重试')
   }
 }
 
-// 一键提升为管理员
-const promoteToAdmin = async (userId: number) => {
-  try {
-    const response = await fetch(`/api/user/${userId}/promote`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
-    if (!response.ok) {
-      throw new Error('提升管理员失败')
-    }
-    ElMessage.success('已成功提升为管理员')
-    // 刷新用户列表
-    await fetchUserList()
-  } catch (error) {
-    console.error('Failed to promote user:', error)
-    ElMessage.error('提升管理员失败，请稍后重试')
-  }
+// Pagination handlers
+const handlePageChange = (newPage: number) => {
+  page.value = newPage
+  fetchUserList()
 }
 
-// 检查当前用户是否为超级管理员
-const checkSuperAdmin = async () => {
-  try {
-    const response = await fetch('/api/user/check-admin', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
-    const result = await response.json()
-    isSuperAdmin.value = result.isSuperAdmin
-    if (isSuperAdmin.value) {
-      await fetchUserList()
-    }
-  } catch (error) {
-    console.error('Failed to check admin status:', error)
-    ElMessage.error('权限检查失败')
-  }
+const handleSizeChange = (newSize: number) => {
+  size.value = newSize
+  page.value = 1 // 重置到第一页
+  fetchUserList()
 }
 
+// 移除超级管理员检查和提升管理员功能，因为默认开放权限
 onMounted(() => {
-  checkSuperAdmin()
+  fetchUserList() // 直接加载用户列表，无需权限检查
 })
 </script>
 
 <template>
   <div class="page-container">
-    <h1>权限管理</h1>
+    <h1>用户管理</h1>
     <hr>
 
-    <!-- 超级管理员用户列表 -->
-    <div v-if="isSuperAdmin" class="user-list-container">
+    <!-- 用户列表 -->
+    <div class="user-list-container">
       <h2>所有用户</h2>
       <el-table :data="userList" style="width: 100%">
-        <el-table-column prop="id" label="用户ID" width="150" />
-        <el-table-column prop="username" label="用户昵称" width="200" />
-        <el-table-column prop="roleId" label="角色ID" width="150" />
-        <el-table-column label="操作">
-          <template #default="scope">
-            <el-button
-                size="small"
-                type="primary"
-                @click="promoteToAdmin(scope.row.id)"
-                :disabled="scope.row.roleId === 1"
-            >
-              提升为管理员
-            </el-button>
-            <!-- 假设1是管理员角色ID -->
-          </template>
-        </el-table-column>
+        <el-table-column prop="username" label="用户名" width="200" />
+        <el-table-column prop="phone" label="手机号" width="200" />
+        <el-table-column prop="role_key" label="角色标识" width="150" />
+        <el-table-column prop="description" label="角色描述" min-width="200" />
       </el-table>
-    </div>
 
-    <!-- 非超级管理员提示 -->
-    <div v-else class="no-permission">
-      <el-alert
-          title="权限不足"
-          type="warning"
-          description="只有超级管理员才能查看用户列表和管理权限"
-          :closable="false"
-      />
+      <!-- Pagination -->
+      <div class="pagination-container">
+        <el-pagination
+            :current-page="page"
+            :page-size="size"
+            :total="total"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            @current-change="handlePageChange"
+            @size-change="handleSizeChange"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -128,17 +105,12 @@ onMounted(() => {
 }
 
 .user-list-container {
-  width: 700px;
+  width: 900px;
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-}
 
-.no-permission {
-  padding: 50px;
-  text-align: center;
-  align-content: center;
+  padding: 20px;
 }
 
 h1 {
@@ -153,5 +125,12 @@ hr {
   width: 100%;
   max-width: 700px;
   margin-bottom: 20px;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  padding-bottom: 20px;
 }
 </style>

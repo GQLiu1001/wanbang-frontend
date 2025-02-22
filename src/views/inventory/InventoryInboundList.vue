@@ -2,38 +2,46 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-// Mocked fallback data
+// Mocked fallback data（与inventory_log表字段一致）
 const mockRecord = {
-  productModel: '1',
-  inventoryId: '1',
-  quantityChange: '1',
-  operatorId: '1',
-  targetWarehouseCode: '1',
-  operationNote: '1',
-  create_time: '1'
+  id: 1,
+  inventory_item_id: 1,
+  operation_type: 1, // 固定为入库
+  quantity_change: 100,
+  operator_id: 1,
+  source_warehouse: 1,
+  target_warehouse: null,
+  remark: '默认入库备注',
+  create_time: '2025-02-22 14:00:00',
+  update_time: '2025-02-22 14:00:00'
 }
 
 // Store inventory records and search state
 const inventoryRecords = ref<any[]>([])
 const filteredRecords = ref<any[]>([])
 const searchDateRange = ref<[Date, Date] | []>([])
+const total = ref(0) // Total records
+const page = ref(1) // Current page
+const size = ref(10) // Page size
 
 // Dialog control
 const editDialogVisible = ref(false)
 const editForm = ref({
-  productModel: '',
-  inventoryId: '',
-  quantityChange: '',
-  operatorId: '',
-  targetWarehouseCode: '',
-  operationNote: '',
-  create_time: ''
+  id: 0,
+  inventory_item_id: 0,
+  operation_type: 1, // 固定为入库
+  quantity_change: 0,
+  operator_id: 0,
+  source_warehouse: <number | null>null,
+  target_warehouse: <number | null>null,
+  remark: '',
+  create_time: '',
+  update_time: ''
 })
 
 // Define picker options for el-date-picker
 const pickerOptions = {
   disabledDate(time: Date) {
-    // 可选范围：过去10年到未来10年
     const now = new Date()
     const tenYearsAgo = now.getFullYear() - 10
     const tenYearsLater = now.getFullYear() + 10
@@ -41,10 +49,20 @@ const pickerOptions = {
   }
 }
 
-// Fetch inventory records from API with fallback to mock data
+// Fetch inventory records from API（限定operation_type=1）
 const fetchInventoryRecords = async () => {
   try {
-    const response = await fetch('/api/inventory/records', {
+    const url = new URL('/api/inventory/logs', window.location.origin)
+    url.searchParams.append('operation_type', '1') // 限定为入库记录
+    url.searchParams.append('page', page.value.toString())
+    url.searchParams.append('size', size.value.toString())
+    if (searchDateRange.value.length === 2) {
+      const [startDate, endDate] = searchDateRange.value
+      url.searchParams.append('start_time', new Date(startDate).toISOString().slice(0, 19).replace('T', ' '))
+      url.searchParams.append('end_time', new Date(endDate).toISOString().slice(0, 19).replace('T', ' '))
+    }
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     })
@@ -52,34 +70,22 @@ const fetchInventoryRecords = async () => {
       throw new Error('API request failed')
     }
     const data = await response.json()
-    const records = (data.records && data.records.length > 0) ? data.records : [mockRecord]
-    inventoryRecords.value = records
-    filteredRecords.value = records
+    if (data.code === 200 && data.data?.items) {
+      inventoryRecords.value = data.data.items
+      filteredRecords.value = data.data.items
+      total.value = data.data.total || 0
+    } else {
+      inventoryRecords.value = [mockRecord]
+      filteredRecords.value = [mockRecord]
+      total.value = 1
+      ElMessage.warning('数据格式异常，已显示默认记录')
+    }
   } catch (error) {
     console.error('Failed to fetch inventory records:', error)
     inventoryRecords.value = [mockRecord]
     filteredRecords.value = [mockRecord]
+    total.value = 1
     ElMessage.warning('无法获取后端数据，已显示默认记录')
-  }
-}
-
-// Filter records by date
-const filterByDateRange = () => {
-  if (searchDateRange.value.length === 0) {
-    filteredRecords.value = [...inventoryRecords.value]
-    return
-  }
-  const [startDate, endDate] = searchDateRange.value
-  const startTime = new Date(startDate).setHours(0, 0, 0, 0)
-  const endTime = new Date(endDate).setHours(23, 59, 59, 999)
-
-  filteredRecords.value = inventoryRecords.value.filter(record => {
-    const recordTime = new Date(record.create_time).getTime()
-    return recordTime >= startTime && recordTime <= endTime
-  })
-
-  if (filteredRecords.value.length === 0) {
-    ElMessage.info('所选日期范围内没有匹配的记录')
   }
 }
 
@@ -88,7 +94,7 @@ onMounted(() => {
   fetchInventoryRecords()
 })
 
-// Edit record
+// Edit record（匹配接口 /api/inventory/logs/{id}）
 const handleEdit = (row: any) => {
   editForm.value = { ...row }
   editDialogVisible.value = true
@@ -96,23 +102,29 @@ const handleEdit = (row: any) => {
 
 const saveEdit = async () => {
   try {
-    const response = await fetch(`/api/inventory/records/${editForm.value.inventoryId}`, {
+    // 确保 operation_type 固定为 1
+    editForm.value.operation_type = 1
+    const response = await fetch(`/api/inventory/logs/${editForm.value.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(editForm.value),
     })
     if (!response.ok) throw new Error('编辑失败')
-    ElMessage.success('编辑成功')
-    editDialogVisible.value = false
-    await fetchInventoryRecords()
-    filterByDateRange()
+    const data = await response.json()
+    if (data.code === 200) {
+      ElMessage.success('编辑成功')
+      editDialogVisible.value = false
+      await fetchInventoryRecords()
+    } else {
+      throw new Error('响应状态异常')
+    }
   } catch (error) {
     console.error('Failed to update record:', error)
     ElMessage.error('编辑失败，请稍后重试')
   }
 }
 
-// Delete record
+// Delete record（匹配接口 /api/inventory/logs/{id}）
 const handleDelete = async (row: any) => {
   try {
     await ElMessageBox.confirm('确定删除此入库记录吗？', '提示', {
@@ -120,14 +132,18 @@ const handleDelete = async (row: any) => {
       cancelButtonText: '取消',
       type: 'warning',
     })
-    const response = await fetch(`/api/inventory/records/${row.inventoryId}`, {
+    const response = await fetch(`/api/inventory/logs/${row.id}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
     })
     if (!response.ok) throw new Error('删除失败')
-    ElMessage.success('删除成功')
-    await fetchInventoryRecords()
-    filterByDateRange()
+    const data = await response.json()
+    if (data.code === 200) {
+      ElMessage.success('删除成功')
+      await fetchInventoryRecords()
+    } else {
+      throw new Error('响应状态异常')
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Failed to delete record:', error)
@@ -136,10 +152,23 @@ const handleDelete = async (row: any) => {
   }
 }
 
-// Clear filter
+// Clear filter and refresh
 const clearFilter = () => {
   searchDateRange.value = []
-  filterByDateRange()
+  page.value = 1 // 重置到第一页
+  fetchInventoryRecords()
+}
+
+// Pagination handlers
+const handlePageChange = (newPage: number) => {
+  page.value = newPage
+  fetchInventoryRecords()
+}
+
+const handleSizeChange = (newSize: number) => {
+  size.value = newSize
+  page.value = 1 // 重置到第一页
+  fetchInventoryRecords()
 }
 </script>
 
@@ -159,7 +188,7 @@ const clearFilter = () => {
               start-placeholder="开始日期"
               end-placeholder="结束日期"
               :picker-options="pickerOptions"
-              @change="filterByDateRange"
+              @change="fetchInventoryRecords"
           />
         </el-form-item>
       </el-col>
@@ -174,24 +203,28 @@ const clearFilter = () => {
         style="width: 100%"
         border
     >
-      <el-table-column prop="productModel" label="产品型号" width="150" />
-      <el-table-column prop="inventoryId" label="库存ID" width="120" />
-      <el-table-column prop="quantityChange" label="数量变化" width="120">
+      <el-table-column prop="id" label="日志ID" width="100" />
+      <el-table-column prop="inventory_item_id" label="库存ID" width="120" />
+      <el-table-column prop="quantity_change" label="数量变化" width="120">
         <template #default="{ row }">
-          <span :class="{ 'positive': row.quantityChange > 0, 'negative': row.quantityChange < 0 }">
-            {{ row.quantityChange > 0 ? '+' : '' }}{{ row.quantityChange }}
-          </span>
+          <span class="positive">+{{ row.quantity_change }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="operatorId" label="操作人ID" width="120" />
-      <el-table-column prop="targetWarehouseCode" label="目标仓库编码" width="150" />
-      <el-table-column prop="operationNote" label="操作备注" min-width="200" />
+      <el-table-column prop="operator_id" label="操作人ID" width="120" />
+      <el-table-column prop="source_warehouse" label="源仓库编码" width="150" />
+      <el-table-column prop="target_warehouse" label="目标仓库编码" width="150" />
+      <el-table-column prop="remark" label="操作备注" min-width="200" />
       <el-table-column prop="create_time" label="创建时间" width="180">
         <template #default="{ row }">
           {{ new Date(row.create_time).toLocaleString() }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150">
+      <el-table-column prop="update_time" label="更新时间" width="180">
+        <template #default="{ row }">
+          {{ new Date(row.update_time).toLocaleString() }}
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
           <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
@@ -202,26 +235,40 @@ const clearFilter = () => {
       暂无入库记录
     </div>
 
+    <!-- Pagination -->
+    <div class="pagination-container">
+      <el-pagination
+          v-if="filteredRecords.length > 0"
+          :current-page="page"
+          :page-size="size"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+      />
+    </div>
+
     <!-- Edit Dialog -->
     <el-dialog v-model="editDialogVisible" title="编辑入库记录" width="30%">
       <el-form :model="editForm" label-width="100px">
-        <el-form-item label="产品型号">
-          <el-input v-model="editForm.productModel" />
-        </el-form-item>
         <el-form-item label="库存ID">
-          <el-input v-model="editForm.inventoryId" disabled />
+          <el-input v-model.number="editForm.inventory_item_id" disabled />
         </el-form-item>
         <el-form-item label="数量变化">
-          <el-input v-model.number="editForm.quantityChange" type="number" />
+          <el-input v-model.number="editForm.quantity_change" type="number" />
         </el-form-item>
         <el-form-item label="操作人ID">
-          <el-input v-model="editForm.operatorId" />
+          <el-input v-model.number="editForm.operator_id" type="number" />
+        </el-form-item>
+        <el-form-item label="源仓库编码">
+          <el-input v-model.number="editForm.source_warehouse" type="number" />
         </el-form-item>
         <el-form-item label="目标仓库编码">
-          <el-input v-model="editForm.targetWarehouseCode" />
+          <el-input v-model.number="editForm.target_warehouse" type="number" />
         </el-form-item>
         <el-form-item label="操作备注">
-          <el-input v-model="editForm.operationNote" type="textarea" />
+          <el-input v-model="editForm.remark" type="textarea" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -247,11 +294,14 @@ const clearFilter = () => {
   color: green;
 }
 
-.negative {
-  color: red;
-}
-
 .search-section {
   margin-bottom: 20px;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px; /* 与上一个版本一致的分页间距 */
+  padding-bottom: 20px;
 }
 </style>

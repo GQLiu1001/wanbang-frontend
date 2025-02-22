@@ -51,9 +51,14 @@ const router = createRouter({
           component: () => import('@/views/inventory/InventoryOutbound.vue'),
         },
         {
-          path: 'inventory/transfer',
-          name: 'inventory-transfer',
-          component: () => import('@/views/inventory/InventoryTransfer.vue'),
+          path: 'inventory/transfer-list',
+          name: 'inventory-transfer-list',
+          component: () => import('@/views/inventory/InventoryTransferList.vue'),
+        },
+        {
+          path: 'inventory/transfer-post',
+          name: 'inventory-transfer-post',
+          component: () => import('@/views/inventory/InventoryTransferPost.vue'),
         },
         // 订单管理
         {

@@ -82,8 +82,12 @@ onUnmounted(() => {
               <el-icon><Monitor /></el-icon>
               <template #title>出库记录</template>
             </el-menu-item>
-            <el-menu-item index="/dashboard/inventory/transfer">
-              <el-icon><Switch /></el-icon>
+            <el-menu-item index="/dashboard/inventory/transfer-post">
+              <el-icon><Upload /></el-icon>
+              <template #title>创建调库</template>
+            </el-menu-item>
+            <el-menu-item index="/dashboard/inventory/transfer-list">
+              <el-icon><Monitor /></el-icon>
               <template #title>调库记录</template>
             </el-menu-item>
           </el-sub-menu>
