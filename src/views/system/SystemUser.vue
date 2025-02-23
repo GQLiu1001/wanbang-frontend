@@ -1,9 +1,84 @@
-// 用户管理的 Vue 页面 <script setup lang="ts">
+<template>
+  <div class="page-container">
+    <h1>用户管理</h1>
+    <hr />
+    <el-form :model="userForm" label-width="100px" class="user-form">
+      <el-form-item label="" class="avatar-item">
+        <el-upload
+            class="avatar-uploader"
+            action="/api/upload"
+        :show-file-list="false"
+        :before-upload="beforeAvatarUpload"
+        :on-success="handleAvatarSuccess"
+        accept="image/*"
+        :headers="uploadHeaders"
+        method="post"
+        >
+        <div v-if="userForm.avatar" class="avatar-wrapper">
+          <img v-if="userForm.avatar" :src="userForm.avatar" class="avatar" />
+          <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
+          <el-button
+              type="danger"
+              size="small"
+              class="remove-avatar-btn"
+              @click.stop="removeAvatar"
+          >
+            删除
+          </el-button>
+        </div>
+        <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
+        </el-upload>
+      </el-form-item>
+
+      <el-form-item label="用户名" required>
+        <el-input v-model="userForm.username" placeholder="请输入用户名" />
+      </el-form-item>
+
+      <el-form-item label="电话" required>
+        <el-input v-model="userForm.phone" placeholder="请输入电话" maxlength="11" />
+      </el-form-item>
+
+      <el-form-item label="旧密码">
+        <el-input
+            v-model="userForm.oldPassword"
+            type="password"
+            placeholder="请输入旧密码（修改密码时必填）"
+            show-password
+        />
+      </el-form-item>
+
+      <el-form-item label="新密码">
+        <el-input
+            v-model="userForm.newPassword"
+            type="password"
+            placeholder="请输入新密码（可选）"
+            show-password
+        />
+      </el-form-item>
+
+      <el-form-item label="确认密码">
+        <el-input
+            v-model="userForm.confirmPassword"
+            type="password"
+            placeholder="请再次输入新密码（可选）"
+            show-password
+        />
+      </el-form-item>
+
+      <el-form-item>
+        <el-button type="primary" @click="submitUserInfo">提交</el-button>
+        <el-button @click="resetForm">重置</el-button>
+      </el-form-item>
+    </el-form>
+  </div>
+</template>
+
+<script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
-import { updateUser, getUploadUrl } from '@/api/user'; // 导入 getUploadUrl
-import axios from '@/utils/axios.ts'; // 导入 axios 用于 PUT 请求
+import { updateUser } from '@/api/user';
+import axios from '@/utils/axios.ts';
 import { Plus } from '@element-plus/icons-vue';
 import router from '@/router';
 
@@ -29,29 +104,40 @@ const userForm = ref({
 // 用户 ID
 const userId = ref<number>(currentUser?.id || 0);
 
-// 处理头像上传
-const handleAvatarUpload = async (file: File) => {
+// 上传 headers（带上鉴权 token）
+const uploadHeaders = ref({
+  Authorization: `Bearer ${localStorage.getItem('token') || ''}`, // 假设使用 Sa-Token 的 token
+});
+
+// 头像上传前验证
+const beforeAvatarUpload = (file: File) => {
+  const isImage = file.type.startsWith('image/');
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件');
+    return false;
+  }
+  const isLt2M = file.size / 1024 / 1024 < 2; // 限制 2MB
+  if (!isLt2M) {
+    ElMessage.error('上传图片大小不能超过 2MB');
+    return false;
+  }
+  return true;
+};
+
+// 头像上传成功回调
+const handleAvatarSuccess = (response: any, file: File, fileList: any) => {
   try {
-    // 获取上传 URL
-    const { data } = await getUploadUrl({
-      fileName: file.name,
-      fileType: file.type,
-    });
-    const { uploadUrl, fileUrl } = data;
-
-    // 使用 uploadUrl 上传文件（PUT 请求）
-    await axios.put(uploadUrl, file, {
-      headers: { 'Content-Type': file.type },
-    });
-
-    // 将 fileUrl 赋值给 userForm.avatar，用于后续提交
-    userForm.value.avatar = fileUrl;
-    ElMessage.success('头像上传成功');
+    const { code, message, data } = response;
+    if (code === 200) {
+      userForm.value.avatar = data.fileUrl; // 后端返回的 fileUrl
+      ElMessage.success('头像上传成功');
+    } else {
+      ElMessage.error(message || '头像上传失败');
+    }
   } catch (error) {
     console.error('头像上传失败:', error);
     ElMessage.error('头像上传失败，请重试');
   }
-  return false; // 阻止默认上传行为
 };
 
 // 删除头像
@@ -144,78 +230,6 @@ const resetForm = () => {
   };
 };
 </script>
-
-<template>
-  <div class="page-container">
-    <h1>用户管理</h1>
-    <hr />
-    <el-form :model="userForm" label-width="100px" class="user-form">
-      <el-form-item label="" class="avatar-item">
-        <el-upload
-            class="avatar-uploader"
-            action=""
-            :show-file-list="false"
-            :before-upload="handleAvatarUpload"
-            accept="image/*"
-        >
-          <div v-if="userForm.avatar" class="avatar-wrapper">
-            <img v-if="userForm.avatar" :src="userForm.avatar" class="avatar" />
-            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-            <el-button
-                type="danger"
-                size="small"
-                class="remove-avatar-btn"
-                @click.stop="removeAvatar"
-            >
-              删除
-            </el-button>
-          </div>
-          <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-        </el-upload>
-      </el-form-item>
-
-      <el-form-item label="用户名" required>
-        <el-input v-model="userForm.username" placeholder="请输入用户名" />
-      </el-form-item>
-
-      <el-form-item label="电话" required>
-        <el-input v-model="userForm.phone" placeholder="请输入电话" maxlength="11" />
-      </el-form-item>
-
-      <el-form-item label="旧密码">
-        <el-input
-            v-model="userForm.oldPassword"
-            type="password"
-            placeholder="请输入旧密码（修改密码时必填）"
-            show-password
-        />
-      </el-form-item>
-
-      <el-form-item label="新密码">
-        <el-input
-            v-model="userForm.newPassword"
-            type="password"
-            placeholder="请输入新密码（可选）"
-            show-password
-        />
-      </el-form-item>
-
-      <el-form-item label="确认密码">
-        <el-input
-            v-model="userForm.confirmPassword"
-            type="password"
-            placeholder="请再次输入新密码（可选）"
-            show-password
-        />
-      </el-form-item>
-
-      <el-form-item>
-        <el-button type="primary" @click="submitUserInfo">提交</el-button>
-        <el-button @click="resetForm">重置</el-button>
-      </el-form-item>
-    </el-form>
-  </div>
-</template>
 
 <style scoped>
 .page-container {

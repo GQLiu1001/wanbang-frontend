@@ -22,7 +22,16 @@ export const deleteUser = (id: number) => {
     return axios.delete(`/api/users/${id}`);
 };
 
-// 新增获取上传 URL 的函数
-export const getUploadUrl = (uploadData: { fileName: string; fileType: string }) => {
-    return axios.post<{ uploadUrl: string; fileUrl: string }>('/api/upload', uploadData);
+// 新增上传文件函数（直接上传文件，返回 fileUrl）
+export const uploadFile = (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file); // 上传文件
+    formData.append('fileName', file.name); // 可选，文件名
+    formData.append('fileType', file.type); // 可选，文件类型
+
+    return axios.post<{ fileUrl: string }>('/api/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
 };
