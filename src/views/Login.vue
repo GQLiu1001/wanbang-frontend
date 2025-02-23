@@ -150,20 +150,38 @@ const handleLogin = async () => {
     });
     ElMessage.success('登录成功');
     router.push('/dashboard');
-  } catch (error) {
+  } catch (error: any) {
     console.error('登录失败:', error);
+    const errorMsg = error.response?.data?.message || '登录失败，请检查用户名或密码';
+    ElMessage.error(errorMsg);
   }
 };
 
 // 处理注册
 const handleRegister = async () => {
   try {
-    await registerService(registerForm.value);
+    if (!registerForm.value.username) {
+      ElMessage.error('用户名是必填项');
+      return;
+    }
+    if (!registerForm.value.password || registerForm.value.password.length < 6) {
+      ElMessage.error('密码长度需至少6位');
+      return;
+    }
+    const phoneRegex = /^1[3-9]\d{9}$/;
+    if (!registerForm.value.phone || !phoneRegex.test(registerForm.value.phone)) {
+      ElMessage.error('请输入有效的11位手机号码');
+      return;
+    }
+
+    const response = await registerService(registerForm.value);
     ElMessage.success('注册成功，请登录');
     currentForm.value = 'login';
     registerForm.value = { username: '', password: '', phone: '' };
-  } catch (error) {
+  } catch (error: any) {
     console.error('注册失败:', error);
+    const errorMsg = error.response?.data?.message || '注册失败，请稍后重试';
+    ElMessage.error(errorMsg);
   }
 };
 
@@ -174,16 +192,16 @@ const handleResetPassword = async () => {
     ElMessage.success('密码重置成功，请登录');
     currentForm.value = 'login';
     resetForm.value = { username: '', phone: '', newPassword: '' };
-  } catch (error) {
+  } catch (error: any) {
     console.error('重置密码失败:', error);
+    const errorMsg = error.response?.data?.message || '重置密码失败，请稍后重试';
+    ElMessage.error(errorMsg);
   }
 };
 </script>
 
-
-
-
 <style scoped>
+/* 样式保持不变 */
 :host {
   display: block;
   margin: 0;
@@ -221,7 +239,7 @@ const handleResetPassword = async () => {
   max-width: 400px;
   margin: 0;
   overflow: hidden;
-  position: relative; /* 为返回按钮定位提供参考 */
+  position: relative;
 }
 
 h1 {
@@ -297,7 +315,6 @@ h1 {
   background-color: #0056b3;
 }
 
-/* 返回按钮样式 */
 .back-button {
   position: absolute;
   top: 10px;

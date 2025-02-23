@@ -14,3 +14,8 @@ export const registerService = (registerData: RegisterRequest) => {
 export const resetPasswordService = (resetData: ResetPasswordRequest) => {
     return axios.post('/auth/reset-password', resetData);
 };
+
+// auth.ts
+export const changePasswordService = (changeData: ChangePasswordRequest) => {
+    return axios.post('/auth/change-password', changeData);
+};

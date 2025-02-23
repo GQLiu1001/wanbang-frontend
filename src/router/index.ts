@@ -5,12 +5,12 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/login',
-      redirect: '/',
+      path: '/',
+      redirect: '/login',
     },
     // 登录页面
     {
-      path: '/',
+      path: '/login',
       name: 'login',
       component: LoginView,
     },

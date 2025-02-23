@@ -1,8 +1,14 @@
+// user.ts
 import axios from "@/utils/axios.ts";
-import type {PaginationParams, User} from "@/types/api.ts";
+import type { User, PaginationParams } from "@/types/api.ts";
+
+// 定义 UpdateUserRequest 类型，包含 oldPassword
+interface UpdateUserRequest extends Omit<User, 'id' | 'role_key' | 'description'> {
+    oldPassword?: string;
+}
 
 // 修改用户信息
-export const updateUser = (id: number, userModel: Omit<User, 'id' | 'role_key' | 'description'>) => {
+export const updateUser = (id: number, userModel: UpdateUserRequest) => {
     return axios.put(`/api/users/${id}`, userModel);
 };
 
@@ -14,4 +20,9 @@ export const getUsers = (params: PaginationParams) => {
 // 删除用户
 export const deleteUser = (id: number) => {
     return axios.delete(`/api/users/${id}`);
+};
+
+// 新增获取上传 URL 的函数
+export const getUploadUrl = (uploadData: { fileName: string; fileType: string }) => {
+    return axios.post<{ uploadUrl: string; fileUrl: string }>('/api/upload', uploadData);
 };

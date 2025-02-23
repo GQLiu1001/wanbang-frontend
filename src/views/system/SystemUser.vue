@@ -1,8 +1,9 @@
-<script setup lang="ts">
-import {onMounted, onUnmounted, ref} from 'vue';
+// 用户管理的 Vue 页面 <script setup lang="ts">
+import { onMounted, onUnmounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
-import { updateUser } from '@/api/user';
+import { updateUser, getUploadUrl } from '@/api/user'; // 导入 getUploadUrl
+import axios from '@/utils/axios.ts'; // 导入 axios 用于 PUT 请求
 import { Plus } from '@element-plus/icons-vue';
 import router from '@/router';
 
@@ -29,14 +30,28 @@ const userForm = ref({
 const userId = ref<number>(currentUser?.id || 0);
 
 // 处理头像上传
-const handleAvatarUpload = (file: File) => {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    userForm.value.avatar = e.target?.result as string;
+const handleAvatarUpload = async (file: File) => {
+  try {
+    // 获取上传 URL
+    const { data } = await getUploadUrl({
+      fileName: file.name,
+      fileType: file.type,
+    });
+    const { uploadUrl, fileUrl } = data;
+
+    // 使用 uploadUrl 上传文件（PUT 请求）
+    await axios.put(uploadUrl, file, {
+      headers: { 'Content-Type': file.type },
+    });
+
+    // 将 fileUrl 赋值给 userForm.avatar，用于后续提交
+    userForm.value.avatar = fileUrl;
     ElMessage.success('头像上传成功');
-  };
-  reader.readAsDataURL(file);
-  return false;
+  } catch (error) {
+    console.error('头像上传失败:', error);
+    ElMessage.error('头像上传失败，请重试');
+  }
+  return false; // 阻止默认上传行为
 };
 
 // 删除头像
@@ -59,6 +74,7 @@ const submitUserInfo = async () => {
       return;
     }
 
+    // 密码相关校验
     if (userForm.value.oldPassword || userForm.value.newPassword || userForm.value.confirmPassword) {
       if (!userForm.value.oldPassword) {
         ElMessage.error('请输入旧密码');
@@ -82,20 +98,26 @@ const submitUserInfo = async () => {
       }
     }
 
+    // 构建提交数据
     const submitData = {
-      avatar: userForm.value.avatar || undefined,
+      avatar: userForm.value.avatar || '', // 使用 fileUrl 或空字符串
       username: userForm.value.username,
       phone: userForm.value.phone,
-      ...(userForm.value.newPassword && { password: userForm.value.newPassword }),
+      ...(userForm.value.newPassword && {
+        oldPassword: userForm.value.oldPassword,
+        password: userForm.value.newPassword,
+      }),
     };
 
+    // 调用 updateUser 更新用户信息和密码
     await updateUser(userId.value, submitData);
 
+    // 更新本地存储的用户信息
     userStore.setUserInfo({
       id: userId.value,
-      username: submitData.username,
-      avatar: submitData.avatar || '',
-      phone: submitData.phone,
+      username: userForm.value.username,
+      avatar: userForm.value.avatar || '',
+      phone: userForm.value.phone,
     });
 
     ElMessage.success('用户信息更新成功');
@@ -106,6 +128,7 @@ const submitUserInfo = async () => {
     }
   } catch (error) {
     console.error('更新用户信息失败:', error);
+    ElMessage.error('更新失败，请稍后重试');
   }
 };
 
@@ -250,7 +273,7 @@ const resetForm = () => {
   height: 120px;
   display: block;
   object-fit: cover;
-  border-radius: 6px; /* 可选：添加圆角 */
+  border-radius: 6px;
 }
 
 .remove-avatar-btn {
@@ -271,10 +294,3 @@ hr {
   margin-bottom: 20px;
 }
 </style>
-
-<script lang="ts">
-// 定义一个方法来检查图片 URL 是否有效
-function isValidImage(url: string): boolean {
-  return url.startsWith('data:image/') || url.startsWith('http://') || url.startsWith('https://');
-}
-</script>
