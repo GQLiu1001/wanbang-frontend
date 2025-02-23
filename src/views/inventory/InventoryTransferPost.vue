@@ -130,7 +130,6 @@ const resetForm = () => {
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="目标仓库" required>
             <el-form-item label="目标仓库" required>
               <el-input
                   v-model.number="formData.target_warehouse"
