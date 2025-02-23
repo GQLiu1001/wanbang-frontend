@@ -147,7 +147,7 @@ onUnmounted(() => {
               <el-icon><Setting /></el-icon>
               <span>系统管理</span>
             </template>
-            <el-menu-item index="/dashboard/system/users">
+            <el-menu-item index="/dashboard/system/user">
               <el-icon><User /></el-icon>
               <template #title>用户管理</template>
             </el-menu-item>
@@ -177,7 +177,7 @@ onUnmounted(() => {
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item @click="router.push('/dashboard/system/users')">个人中心</el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/dashboard/system/user')">个人中心</el-dropdown-item>
                   <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
                 </el-dropdown-menu>
               </template>

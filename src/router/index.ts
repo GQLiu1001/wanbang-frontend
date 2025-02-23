@@ -82,9 +82,9 @@ const router = createRouter({
         },
         // 系统管理
         {
-          path: 'system/users',
-          name: 'system-users',
-          component: () => import('@/views/system/SystemUsers.vue'),
+          path: 'system/user',
+          name: 'system-user',
+          component: () => import('@/views/system/SystemUser.vue'),
         },
         {
           path: 'system/roles',
