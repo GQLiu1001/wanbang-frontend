@@ -1,72 +1,73 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import * as echarts from 'echarts'
-import { ElMessage } from 'element-plus'
+import { ref, onMounted } from 'vue';
+import * as echarts from 'echarts';
+import { ElMessage } from 'element-plus';
+import { fetchTotalSalesAmount, fetchTodaySalesAmount, fetchSalesTrend, fetchTopProducts } from '@/api/order';
 
-// Mocked data for sales trend
-const salesData = ref({
-  dates: ['2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06'],
-  values: [120, 200, 150, 300, 250, 400]
-})
-
-// Mocked data for top products
-const topProducts = ref([
-  { model_number: 'MODEL-A', sales: 500, total_amount: 50000 },
-  { model_number: 'MODEL-B', sales: 450, total_amount: 45000 },
-  { model_number: 'MODEL-C', sales: 300, total_amount: 30000 },
-  { model_number: 'MODEL-D', sales: 200, total_amount: 20000 },
-  { model_number: 'MODEL-E', sales: 150, total_amount: 15000 }
-])
+// 数据定义（初始为空，等待 API 填充）
+const salesData = ref<{ dates: string[]; values: number[] }>({ dates: [], values: [] });
+const topProducts = ref<{ model_number: string; sales: number; total_amount: number }[]>([]);
+const totalSalesAmount = ref<number>(0);
+const todaySalesAmount = ref<number>(0);
 
 // Reference to the chart DOM element
-const salesChartRef = ref<HTMLElement | null>(null)
+const salesChartRef = ref<HTMLElement | null>(null);
 
-// Fetch sales data from API (mocked here)
+// Fetch sales trend data from API
 const fetchSalesData = async () => {
   try {
-    // Simulated API call
-    // const response = await fetch('/api/sales/trend', { method: 'GET' })
-    // const data = await response.json()
-    // salesData.value = data
+    const response = await fetchSalesTrend();
+    salesData.value = response.data;
   } catch (error) {
-    console.error('Failed to fetch sales data:', error)
-    ElMessage.warning('无法获取销量数据，已显示默认数据')
+    console.error('Failed to fetch sales data:', error);
+    ElMessage.warning('无法获取销量趋势数据，已显示默认数据');
+    // 默认数据作为备用
+    salesData.value = {
+      dates: ['2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06'],
+      values: [120, 200, 150, 300, 250, 400],
+    };
   }
-}
+};
 
-// Fetch top products from API (mocked here)
-const fetchTopProducts = async () => {
+// Fetch top products from API
+const fetchTopProductsData = async () => {
   try {
-    // Simulated API call
-    // const response = await fetch('/api/sales/top-products', { method: 'GET' })
-    // const data = await response.json()
-    // topProducts.value = data
+    const response = await fetchTopProducts();
+    topProducts.value = response.data;
   } catch (error) {
-    console.error('Failed to fetch top products:', error)
-    ElMessage.warning('无法获取最火爆卖品数据，已显示默认数据')
+    console.error('Failed to fetch top products:', error);
+    ElMessage.warning('无法获取最火爆卖品数据，已显示默认数据');
+    // 默认数据作为备用
+    topProducts.value = [
+      { model_number: 'MODEL-A', sales: 500, total_amount: 50000 },
+      { model_number: 'MODEL-B', sales: 450, total_amount: 45000 },
+      { model_number: 'MODEL-C', sales: 300, total_amount: 30000 },
+      { model_number: 'MODEL-D', sales: 200, total_amount: 20000 },
+      { model_number: 'MODEL-E', sales: 150, total_amount: 15000 },
+    ];
   }
-}
+};
 
 // Initialize sales chart
 const initSalesChart = () => {
-  if (!salesChartRef.value) return
+  if (!salesChartRef.value) return;
 
-  const chart = echarts.init(salesChartRef.value)
+  const chart = echarts.init(salesChartRef.value);
   const option = {
     title: {
       text: '销量趋势',
-      left: 'center'
+      left: 'center',
     },
     tooltip: {
-      trigger: 'axis'
+      trigger: 'axis',
     },
     xAxis: {
       type: 'category',
-      data: salesData.value.dates
+      data: salesData.value.dates,
     },
     yAxis: {
       type: 'value',
-      name: '销量'
+      name: '销量',
     },
     series: [
       {
@@ -75,32 +76,69 @@ const initSalesChart = () => {
         data: salesData.value.values,
         smooth: true,
         lineStyle: {
-          color: '#409EFF'
+          color: '#409EFF',
         },
         itemStyle: {
-          color: '#409EFF'
-        }
-      }
-    ]
-  }
-  chart.setOption(option)
+          color: '#409EFF',
+        },
+      },
+    ],
+  };
+  chart.setOption(option);
 
   // Resize chart on window resize
-  window.addEventListener('resize', () => chart.resize())
-}
+  window.addEventListener('resize', () => chart.resize());
+};
 
 // Load data and initialize chart on mount
-onMounted(() => {
-  fetchSalesData()
-  fetchTopProducts()
-  initSalesChart()
-})
+onMounted(async () => {
+  // 获取所有数据
+  try {
+    const totalResponse = await fetchTotalSalesAmount();
+    totalSalesAmount.value = totalResponse.data.total_amount;
+  } catch (error) {
+    console.error('Failed to fetch total sales amount:', error);
+    ElMessage.warning('无法获取总销售金额，已显示默认数据');
+    totalSalesAmount.value = 150000;
+  }
+
+  try {
+    const todayResponse = await fetchTodaySalesAmount();
+    todaySalesAmount.value = todayResponse.data.today_amount;
+  } catch (error) {
+    console.error('Failed to fetch today sales amount:', error);
+    ElMessage.warning('无法获取今日销售金额，已显示默认数据');
+    todaySalesAmount.value = 5000;
+  }
+
+  await fetchSalesData();
+  await fetchTopProductsData();
+  initSalesChart();
+});
 </script>
 
 <template>
   <div class="welcome-container">
     <h1>欢迎来到万邦陶瓷库存管理系统</h1>
-    <hr>
+    <hr />
+
+    <!-- 订单总销售金额和今日销售金额 -->
+    <el-row :gutter="20" class="stats-section">
+      <el-col :span="12">
+        <el-card shadow="hover" class="rounded-card stats-card">
+          <h3>订单总销售金额</h3>
+          <p class="stats-value">{{ totalSalesAmount }} 元</p>
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card shadow="hover" class="rounded-card stats-card">
+          <h3>今日销售金额</h3>
+          <p class="stats-value">{{ todaySalesAmount }} 元</p>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 图表部分 -->
     <el-row :gutter="20" class="charts-section">
       <!-- Sales Trend Chart -->
       <el-col :span="16">
@@ -113,12 +151,7 @@ onMounted(() => {
       <el-col :span="8">
         <el-card shadow="hover" class="rounded-card">
           <h3>最火爆卖品</h3>
-          <el-table
-              :data="topProducts"
-              style="width: 100%"
-              border
-              height="350"
-          >
+          <el-table :data="topProducts" style="width: 100%" border height="350">
             <el-table-column prop="model_number" label="产品型号" />
             <el-table-column prop="sales" label="销量" />
           </el-table>
@@ -133,6 +166,11 @@ onMounted(() => {
   padding: 20px;
 }
 
+.stats-section {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
 .charts-section {
   margin-top: 20px;
 }
@@ -140,7 +178,6 @@ onMounted(() => {
 .sales-chart {
   width: 100%;
   height: 400px;
-
 }
 
 h1 {
@@ -150,14 +187,23 @@ h1 {
 
 h3 {
   text-align: center;
-  height: auto;
   margin-bottom: 10px;
+}
+
+/* 统计卡片样式 */
+.stats-card {
+  text-align: center;
+}
+
+.stats-value {
+  font-size: 24px;
+  color: #409EFF;
+  margin: 10px 0 0 0;
 }
 
 /* 添加圆角样式 */
 .rounded-card {
-  border-radius: 50px; /* 设置圆角大小，可以根据需要调整 */
-  overflow: hidden; /* 确保内容不会溢出圆角边界 */
+  border-radius: 15px;
+  overflow: hidden;
 }
-
 </style>
