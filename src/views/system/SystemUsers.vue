@@ -1,60 +1,75 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref } from 'vue';
+import { ElMessage } from 'element-plus';
+import { updateUser } from '@/api/user';
+import type { User } from '@/types/api';
+import { Plus } from '@element-plus/icons-vue';
 
-// User form data
-const userForm = ref({
-  avatar: '',     // 头像URL
-  username: '',   // 用户名
-  password: '',   // 密码
-  phone: ''       // 手机号
-})
+// User form data（与 User 类型一致）
+const userForm = ref<Partial<User>>({
+  avatar: '',
+  username: '',
+  password: '',
+  phone: '',
+});
+
+// 假设有一个用户 ID 用于更新（实际应用中可能从路由参数或状态管理获取）
+const userId = ref<number>(1); // 示例 ID，需根据实际情况动态设置
 
 // Handle avatar upload
 const handleAvatarUpload = (file: File) => {
-  const reader = new FileReader()
+  const reader = new FileReader();
   reader.onload = (e) => {
-    userForm.value.avatar = e.target?.result as string
-  }
-  reader.readAsDataURL(file)
-  ElMessage.success('头像上传成功')
-}
+    userForm.value.avatar = e.target?.result as string;
+  };
+  reader.readAsDataURL(file);
+  ElMessage.success('头像上传成功');
+  return false; // 阻止默认上传行为
+};
 
-// Submit user info
+// Remove avatar
+const removeAvatar = () => {
+  userForm.value.avatar = '';
+  ElMessage.success('头像已删除');
+};
+
+// Submit user info（匹配 /api/users/{id}）
 const submitUserInfo = async () => {
   try {
     // Validate required fields
-    if (!userForm.value.username || !userForm.value.email) {
-      ElMessage.error('用户名和邮箱为必填项')
-      return
+    if (!userForm.value.username) {
+      ElMessage.error('用户名是必填项');
+      return;
     }
 
-    // 验证手机号格式
-    const phoneRegex = /^1[3-9]\d{9}$/
-    if (!phoneRegex.test(userForm.value.phone)) {
-      ElMessage.error('请输入有效的手机号码')
-      return
+    // Validate phone number format
+    const phoneRegex = /^1[3-9]\d{9}$/;
+    if (!userForm.value.phone || !phoneRegex.test(userForm.value.phone)) {
+      ElMessage.error('请输入有效的11位手机号码');
+      return;
     }
 
-    // Simulated API call - replace with your actual backend endpoint
-    const response = await fetch('/api/user/update', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userForm.value)
-    })
+    // Prepare data for API（确保类型正确）
+    const submitData = {
+      avatar: userForm.value.avatar || undefined,
+      username: userForm.value.username,
+      password: userForm.value.password || undefined, // 可选字段
+      phone: userForm.value.phone,
+    };
 
-    if (!response.ok) {
-      throw new Error('更新失败')
+    // API call
+    const response = await updateUser(userId.value, submitData);
+    const data = response.data;
+    if (data.code === 200) {
+      ElMessage.success('用户信息更新成功');
+    } else {
+      throw new Error('响应状态异常');
     }
-
-    ElMessage.success('用户信息更新成功')
   } catch (error) {
-    console.error('Failed to update user info:', error)
-    ElMessage.error('更新失败，请稍后重试')
+    console.error('Failed to update user info:', error);
+    ElMessage.error('更新失败，请稍后重试');
   }
-}
+};
 
 // Reset form
 const resetForm = () => {
@@ -62,9 +77,9 @@ const resetForm = () => {
     avatar: '',
     username: '',
     password: '',
-    phone: ''
-  }
-}
+    phone: '',
+  };
+};
 </script>
 
 <template>
@@ -81,7 +96,17 @@ const resetForm = () => {
             :before-upload="handleAvatarUpload"
             accept="image/*"
         >
-          <img v-if="userForm.avatar" :src="userForm.avatar" class="avatar" />
+          <div v-if="userForm.avatar" class="avatar-wrapper">
+            <img :src="userForm.avatar" class="avatar" />
+            <el-button
+                type="danger"
+                size="small"
+                class="remove-avatar-btn"
+                @click.stop="removeAvatar"
+            >
+              删除
+            </el-button>
+          </div>
           <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
         </el-upload>
       </el-form-item>
@@ -99,7 +124,7 @@ const resetForm = () => {
         />
       </el-form-item>
       <el-form-item label="电话" required>
-        <el-input v-model="userForm.phone" placeholder="请输入电话" />
+        <el-input v-model="userForm.phone" placeholder="请输入电话" maxlength="11" />
       </el-form-item>
 
       <!-- Buttons -->
@@ -117,7 +142,6 @@ const resetForm = () => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-
 }
 
 .user-form {
@@ -155,16 +179,29 @@ const resetForm = () => {
   height: 120px;
   line-height: 120px;
   text-align: center;
-  border-radius: 50%;
+
   border: 2px dashed #dcdfe6;
+}
+
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
 }
 
 .avatar {
   width: 120px;
   height: 120px;
   display: block;
-  border-radius: 50%;
+
   object-fit: cover;
+}
+
+.remove-avatar-btn {
+  position: absolute;
+  top: 5px;
+  right: -50px;
+  padding: 5px 10px;
+  font-size: 12px;
 }
 
 h1 {

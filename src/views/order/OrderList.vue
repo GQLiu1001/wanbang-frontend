@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, onMounted } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { getOrders, updateOrder, deleteOrder } from '@/api/order';
+import type { Order, OrderQueryParams } from '@/types/api';
 
-// Mocked fallback data（与order_info表字段一致）
-const mockRecord = {
-  id: 1,
+// Mocked fallback data（与 Order 类型一致）
+const mockRecord: Order = {
   order_no: 'ORD123456',
   item_id: 1,
   quantity: 10,
@@ -16,44 +17,35 @@ const mockRecord = {
   order_remark: '测试订单',
   aftersale_type: null,
   aftersale_status: null,
-  resolution_result: null,
-  aftersale_operator: null,
   order_create_time: '2025-02-21 10:00:00',
   order_update_time: '2025-02-21 10:00:00',
-  aftersale_create_time: null,
-  aftersale_update_time: null
-}
+};
 
 // Store order records and search state
-const orderRecords = ref<any[]>([])
-const total = ref(0) // Total records
-const page = ref(1) // Current page
-const size = ref(10) // Page size
-const searchDateRange = ref<[Date, Date] | []>([])
-const searchPhone = ref<string>('')
+const orderRecords = ref<Order[]>([]);
+const total = ref(0); // Total records
+const page = ref(1); // Current page
+const size = ref(10); // Page size
+const searchDateRange = ref<[Date, Date] | []>([]);
+const searchPhone = ref<string>('');
 
 // Dialog control
-const editDialogVisible = ref(false)
-const editForm = ref({
-  id: 0,
+const editDialogVisible = ref(false);
+const editForm = ref<Order>({
   order_no: '',
   item_id: 0,
   quantity: 0,
-  adjusted_quantity: <number | null>null,
+  adjusted_quantity: null,
   total_amount: 0,
-  adjusted_amount: <number | null>null,
+  adjusted_amount: null,
   customer_phone: '',
-  operator_id: <number | null>null,
+  operator_id: null,
   order_remark: '',
-  aftersale_type: <number | null>null,
-  aftersale_status: <number | null>null,
-  resolution_result: <string | null>null,
-  aftersale_operator: <number | null>null,
+  aftersale_type: null,
+  aftersale_status: null,
   order_create_time: '',
   order_update_time: '',
-  aftersale_create_time: <string | null>null,
-  aftersale_update_time: <string | null>null
-})
+});
 
 // Define picker options for el-date-picker
 const pickerOptions = {
@@ -61,168 +53,162 @@ const pickerOptions = {
     {
       text: '最近一周',
       onClick(picker: any) {
-        const end = new Date()
-        const start = new Date()
-        start.setTime(start.getTime() - 3600 * 1000 * 24 * 7)
-        picker.$emit('pick', [start, end])
-      }
+        const end = new Date();
+        const start = new Date();
+        start.setTime(start.getTime() - 3600 * 1000 * 24 * 7);
+        picker.$emit('pick', [start, end]);
+      },
     },
     {
       text: '最近一个月',
       onClick(picker: any) {
-        const end = new Date()
-        const start = new Date()
-        start.setTime(start.getTime() - 3600 * 1000 * 24 * 30)
-        picker.$emit('pick', [start, end])
-      }
+        const end = new Date();
+        const start = new Date();
+        start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
+        picker.$emit('pick', [start, end]);
+      },
     },
     {
       text: '最近三个月',
       onClick(picker: any) {
-        const end = new Date()
-        const start = new Date()
-        start.setTime(start.getTime() - 3600 * 1000 * 24 * 90)
-        picker.$emit('pick', [start, end])
-      }
-    }
+        const end = new Date();
+        const start = new Date();
+        start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+        picker.$emit('pick', [start, end]);
+      },
+    },
   ],
   disabledDate(time: Date) {
-    const now = new Date()
-    const tenYearsAgo = now.getFullYear() - 10
-    const tenYearsLater = now.getFullYear() + 10
-    return time.getFullYear() < tenYearsAgo || time.getFullYear() > tenYearsLater
-  }
-}
+    const now = new Date();
+    const tenYearsAgo = now.getFullYear() - 10;
+    const tenYearsLater = now.getFullYear() + 10;
+    return time.getFullYear() < tenYearsAgo || time.getFullYear() > tenYearsLater;
+  },
+};
 
 // Fetch order records from API（匹配 /api/orders）
 const fetchOrderRecords = async () => {
   try {
-    const url = new URL('/api/orders', window.location.origin)
-    url.searchParams.append('page', page.value.toString())
-    url.searchParams.append('size', size.value.toString())
+    const params: OrderQueryParams = {
+      page: page.value,
+      size: size.value,
+    };
     if (searchDateRange.value.length === 2) {
-      const [startDate, endDate] = searchDateRange.value
-      url.searchParams.append('start_time', new Date(startDate).toISOString().slice(0, 19).replace('T', ' '))
-      url.searchParams.append('end_time', new Date(endDate).toISOString().slice(0, 19).replace('T', ' '))
+      const [startDate, endDate] = searchDateRange.value;
+      params.start_time = new Date(startDate).toISOString().slice(0, 19).replace('T', ' ');
+      params.end_time = new Date(endDate).toISOString().slice(0, 19).replace('T', ' ');
     }
     if (searchPhone.value.trim()) {
-      url.searchParams.append('customer_phone', searchPhone.value.trim())
+      params.customer_phone = searchPhone.value.trim();
     }
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    })
-    if (!response.ok) {
-      throw new Error('API request failed')
-    }
-    const data = await response.json()
+    const response = await getOrders(params);
+    const data = response.data;
     if (data.code === 200 && data.data?.items) {
-      orderRecords.value = data.data.items
-      total.value = data.data.total || 0
+      orderRecords.value = data.data.items;
+      total.value = data.data.total || 0;
     } else {
-      orderRecords.value = [mockRecord]
-      total.value = 1
-      ElMessage.warning('数据格式异常，已显示默认记录')
+      orderRecords.value = [mockRecord];
+      total.value = 1;
+      ElMessage.warning('数据格式异常，已显示默认记录');
     }
   } catch (error) {
-    console.error('Failed to fetch order records:', error)
-    orderRecords.value = [mockRecord]
-    total.value = 1
-    ElMessage.warning('无法获取后端数据，已显示默认记录')
+    console.error('Failed to fetch order records:', error);
+    orderRecords.value = [mockRecord];
+    total.value = 1;
+    ElMessage.warning('无法获取后端数据，已显示默认记录');
   }
-}
+};
 
 // Load data on mount
 onMounted(() => {
-  fetchOrderRecords()
-})
+  fetchOrderRecords();
+});
 
 // Edit record（匹配 /api/orders/{order_no}）
-const handleEdit = (row: any) => {
-  editForm.value = { ...row }
-  editDialogVisible.value = true
-}
+const handleEdit = (row: Order) => {
+  editForm.value = { ...row };
+  editDialogVisible.value = true;
+};
 
 const saveEdit = async () => {
   try {
-    const response = await fetch(`/api/orders/${editForm.value.order_no}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm.value),
-    })
-    if (!response.ok) throw new Error('编辑失败')
-    const data = await response.json()
+    const updateData = {
+      item_id: editForm.value.item_id,
+      quantity: editForm.value.quantity,
+      total_amount: editForm.value.total_amount,
+      customer_phone: editForm.value.customer_phone,
+      operator_id: editForm.value.operator_id,
+      order_remark: editForm.value.order_remark || undefined,
+    };
+    const response = await updateOrder(editForm.value.order_no!, updateData);
+    const data = response.data;
     if (data.code === 200) {
-      ElMessage.success('编辑成功')
-      editDialogVisible.value = false
-      await fetchOrderRecords()
+      ElMessage.success('编辑成功');
+      editDialogVisible.value = false;
+      await fetchOrderRecords();
     } else {
-      throw new Error('响应状态异常')
+      throw new Error('响应状态异常');
     }
   } catch (error) {
-    console.error('Failed to update order record:', error)
-    ElMessage.error('编辑失败，请稍后重试')
+    console.error('Failed to update order record:', error);
+    ElMessage.error('编辑失败，请稍后重试');
   }
-}
+};
 
 // Delete record（匹配 /api/orders/{order_no}）
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: Order) => {
   try {
     await ElMessageBox.confirm('确定删除此订单记录吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning',
-    })
-    const response = await fetch(`/api/orders/${row.order_no}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-    })
-    if (!response.ok) throw new Error('删除失败')
-    const data = await response.json()
+    });
+    const response = await deleteOrder(row.order_no!);
+    const data = response.data;
     if (data.code === 200) {
-      ElMessage.success('删除成功')
-      await fetchOrderRecords()
+      ElMessage.success('删除成功');
+      await fetchOrderRecords();
     } else {
-      throw new Error('响应状态异常')
+      throw new Error('响应状态异常');
     }
   } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Failed to delete order record:', error)
-      ElMessage.error('删除失败，请稍后重试')
+    if ((error as any).message !== 'cancel') {
+      console.error('Failed to delete order record:', error);
+      ElMessage.error('删除失败，请稍后重试');
     }
   }
-}
+};
 
 // Pagination handlers
 const handlePageChange = (newPage: number) => {
-  page.value = newPage
-  fetchOrderRecords()
-}
+  page.value = newPage;
+  fetchOrderRecords();
+};
 
 const handleSizeChange = (newSize: number) => {
-  size.value = newSize
-  page.value = 1 // 重置到第一页
-  fetchOrderRecords()
-}
+  size.value = newSize;
+  page.value = 1; // 重置到第一页
+  fetchOrderRecords();
+};
 
 // Clear filter and refresh
 const clearFilter = () => {
-  searchDateRange.value = []
-  searchPhone.value = ''
-  page.value = 1 // 重置到第一页
-  fetchOrderRecords()
-}
+  searchDateRange.value = [];
+  searchPhone.value = '';
+  page.value = 1; // 重置到第一页
+  fetchOrderRecords();
+};
 
 // Aftersale type and status mapping
 const aftersaleTypeMap = {
   1: '买多退货退款',
-  2: '买少补货补款'
-}
+  2: '买少补货补款',
+};
 const aftersaleStatusMap = {
   1: '新建',
-  2: '已解决'
-}
+  2: '已解决',
+};
 </script>
 
 <template>
@@ -309,9 +295,7 @@ const aftersaleStatusMap = {
         </template>
       </el-table-column>
     </el-table>
-    <div v-else class="no-data">
-      暂无订单记录
-    </div>
+    <div v-else class="no-data">暂无订单记录</div>
 
     <!-- Pagination -->
     <div class="pagination-container">
@@ -340,19 +324,32 @@ const aftersaleStatusMap = {
           <el-input v-model.number="editForm.quantity" type="number" />
         </el-form-item>
         <el-form-item label="调整后数量">
-          <el-input v-model.number="editForm.adjusted_quantity" type="number" placeholder="留空表示无调整" />
+          <el-input
+              v-model.number="editForm.adjusted_quantity"
+              type="number"
+              placeholder="留空表示无调整"
+          />
         </el-form-item>
         <el-form-item label="原始订单金额">
           <el-input v-model.number="editForm.total_amount" type="number" step="0.01" />
         </el-form-item>
         <el-form-item label="调整后金额">
-          <el-input v-model.number="editForm.adjusted_amount" type="number" step="0.01" placeholder="留空表示无调整" />
+          <el-input
+              v-model.number="editForm.adjusted_amount"
+              type="number"
+              step="0.01"
+              placeholder="留空表示无调整"
+          />
         </el-form-item>
         <el-form-item label="客户手机号">
           <el-input v-model="editForm.customer_phone" />
         </el-form-item>
         <el-form-item label="操作人ID">
-          <el-input v-model.number="editForm.operator_id" type="number" placeholder="留空表示无" />
+          <el-input
+              v-model.number="editForm.operator_id"
+              type="number"
+              placeholder="留空表示无"
+          />
         </el-form-item>
         <el-form-item label="订单备注">
           <el-input v-model="editForm.order_remark" type="textarea" />
@@ -370,12 +367,6 @@ const aftersaleStatusMap = {
             <el-option label="新建" :value="1" />
             <el-option label="已解决" :value="2" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="处理结果说明">
-          <el-input v-model="editForm.resolution_result" type="textarea" placeholder="售后处理结果" />
-        </el-form-item>
-        <el-form-item label="售后处理人ID">
-          <el-input v-model.number="editForm.aftersale_operator" type="number" placeholder="留空表示无" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -404,7 +395,7 @@ const aftersaleStatusMap = {
 .pagination-container {
   display: flex;
   justify-content: center;
-  margin-top: 20px; /* 与上一个版本一致的分页间距 */
+  margin-top: 20px;
   padding-bottom: 20px;
 }
 </style>

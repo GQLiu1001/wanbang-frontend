@@ -1,85 +1,83 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref } from 'vue';
+import { ElMessage } from 'element-plus';
+import { postInventoryLog } from '@/api/inventoryLog';
+import type { InventoryLog } from '@/types/api';
 
-// Form data
-const formData = ref({
-  inventory_item_id: '',     // 库存项ID
-  operation_type: 3,         // 操作类型，固定为调库（3）
-  quantity_change: '',       // 数量变化
-  operator_id: '',          // 操作员ID
-  source_warehouse: '',     // 源仓库
-  target_warehouse: '',     // 目标仓库
-  remark: ''               // 备注
-})
+// Form data（与 InventoryLog 类型一致）
+const formData = ref<Partial<InventoryLog>>({
+  inventory_item_id: null,
+  operation_type: 3, // 固定为调库（3）
+  quantity_change: null,
+  operator_id: null,
+  source_warehouse: null,
+  target_warehouse: null,
+  remark: '',
+});
 
-// 提交函数
+// Submit function（匹配接口 /api/inventory/logs）
 const submitTransfer = async () => {
   try {
-    // 验证必填字段
-    const requiredFields = [
-      'inventory_item_id', 'quantity_change', 'operator_id',
-      'source_warehouse', 'target_warehouse'
-    ]
-    for (const field of requiredFields) {
-      if (!formData.value[field]) {
-        ElMessage.error('请填写所有必填字段')
-        return
+    // Validate required fields
+    const requiredFields: Record<keyof InventoryLog, string> = {
+      inventory_item_id: '库存项ID',
+      quantity_change: '数量变化',
+      operator_id: '操作员ID',
+      source_warehouse: '源仓库',
+      target_warehouse: '目标仓库',
+    };
+    for (const [field, label] of Object.entries(requiredFields)) {
+      const value = formData.value[field as keyof InventoryLog];
+      if (value === null || value === undefined || value === '') {
+        ElMessage.error(`请填写${label}`);
+        return;
       }
     }
 
-    // 验证数量变化为正数
-    if (formData.value.quantity_change <= 0) {
-      ElMessage.error('数量变化必须为正数')
-      return
+    // Validate quantity_change is positive
+    if ((formData.value.quantity_change ?? 0) <= 0) {
+      ElMessage.error('数量变化必须为正数');
+      return;
     }
 
-    // API call to create transfer record - match the interface /api/inventory/logs
-    const response = await fetch('/api/inventory/logs', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        inventory_item_id: Number(formData.value.inventory_item_id),
-        operation_type: formData.value.operation_type, // 固定为3（调库）
-        quantity_change: Number(formData.value.quantity_change),
-        operator_id: Number(formData.value.operator_id),
-        source_warehouse: Number(formData.value.source_warehouse),
-        target_warehouse: Number(formData.value.target_warehouse),
-        remark: formData.value.remark || null // Optional, can be null
-      })
-    })
+    // Prepare data for API（确保类型正确）
+    const submitData = {
+      inventory_item_id: Number(formData.value.inventory_item_id),
+      operation_type: formData.value.operation_type, // 固定为 3
+      quantity_change: Number(formData.value.quantity_change),
+      operator_id: Number(formData.value.operator_id),
+      source_warehouse: Number(formData.value.source_warehouse),
+      target_warehouse: Number(formData.value.target_warehouse),
+      remark: formData.value.remark || undefined, // 可选字段，空字符串转为 undefined
+    };
 
-    if (!response.ok) {
-      throw new Error('调库记录创建失败')
-    }
-
-    const data = await response.json()
+    // API call
+    const response = await postInventoryLog(submitData);
+    const data = response.data;
     if (data.code === 201) {
-      ElMessage.success('调库记录创建成功')
-      resetForm()
+      ElMessage.success('调库记录创建成功');
+      resetForm();
     } else {
-      throw new Error(data.message || '调库记录创建失败')
+      throw new Error(data.message || '响应状态异常');
     }
   } catch (error) {
-    console.error('Submission failed:', error)
-    ElMessage.error('调库记录创建失败，请稍后重试')
+    console.error('Submission failed:', error);
+    ElMessage.error('调库记录创建失败，请稍后重试');
   }
-}
+};
 
-// 重置表单函数
+// Reset form function
 const resetForm = () => {
   formData.value = {
-    inventory_item_id: '',
+    inventory_item_id: null,
     operation_type: 3, // 固定为调库
-    quantity_change: '',
-    operator_id: '',
-    source_warehouse: '',
-    target_warehouse: '',
-    remark: ''
-  }
-}
+    quantity_change: null,
+    operator_id: null,
+    source_warehouse: null,
+    target_warehouse: null,
+    remark: '',
+  };
+};
 </script>
 
 <template>
@@ -133,12 +131,13 @@ const resetForm = () => {
         </el-col>
         <el-col :span="12">
           <el-form-item label="目标仓库" required>
-            <el-input
-                v-model.number="formData.target_warehouse"
-                placeholder="请输入目标仓库编号"
-                type="number"
-            />
-          </el-form-item>
+            <el-form-item label="目标仓库" required>
+              <el-input
+                  v-model.number="formData.target_warehouse"
+                  placeholder="请输入目标仓库编号"
+                  type="number"
+              />
+            </el-form-item>
         </el-col>
       </el-row>
 

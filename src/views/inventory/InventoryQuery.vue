@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { getInventoryItems, updateInventoryItem, deleteInventoryItem } from '@/api/inventory';
+import type { InventoryItem, InventoryQueryParams } from '@/types/api';
 
-// Mocked fallback data（与库存表字段一致）
-const mockResult = {
+// Mocked fallback data（与 InventoryItem 类型一致）
+const mockResult: InventoryItem = {
   id: 0,
   model_number: '默认型号',
   manufacturer: '默认厂商',
@@ -16,20 +18,20 @@ const mockResult = {
   pieces_per_box: 10,
   remark: '默认备注',
   create_time: '2025-02-22 00:00:00',
-  update_time: '2025-02-22 00:00:00'
-}
+  update_time: '2025-02-22 00:00:00',
+};
 
 // Search parameters
-const category = ref<number | ''>('') // Product category
-const surface = ref<number | ''>('') // Surface treatment
-const searchResults = ref<any[]>([]) // Store search results
-const total = ref(0) // Total records
-const page = ref(1) // Current page
-const size = ref(10) // Page size
+const category = ref<number | null>(null); // Product category
+const surface = ref<number | null>(null); // Surface treatment
+const searchResults = ref<InventoryItem[]>([]); // Store search results
+const total = ref(0); // Total records
+const page = ref(1); // Current page
+const size = ref(10); // Page size
 
 // Dialog control for editing
-const editDialogVisible = ref(false)
-const editForm = ref({
+const editDialogVisible = ref(false);
+const editForm = ref<InventoryItem>({
   id: 0,
   model_number: '',
   manufacturer: '',
@@ -42,117 +44,122 @@ const editForm = ref({
   pieces_per_box: 0,
   remark: '',
   create_time: '',
-  update_time: ''
-})
+  update_time: '',
+});
 
 // Category and surface treatment options（与数据库枚举一致）
 const categoryOptions = [
   { label: '墙砖', value: 1 },
-  { label: '地砖', value: 2 }
-]
+  { label: '地砖', value: 2 },
+];
 const surfaceOptions = [
   { label: '抛光', value: 1 },
   { label: '哑光', value: 2 },
   { label: '釉面', value: 3 },
   { label: '通体大理石', value: 4 },
   { label: '微晶石', value: 5 },
-  { label: '岩板', value: 6 }
-]
+  { label: '岩板', value: 6 },
+];
 
 // Search function（匹配接口 /api/inventory/items）
 const performSearch = async () => {
   try {
-    const queryParams = new URLSearchParams({
-      page: page.value.toString(),
-      size: size.value.toString(),
-      ...(category.value && { category: category.value.toString() }),
-      ...(surface.value && { surface: surface.value.toString() })
-    }).toString()
+    const params: InventoryQueryParams = {
+      page: page.value,
+      size: size.value,
+    };
+    if (category.value !== null) params.category = category.value;
+    if (surface.value !== null) params.surface = surface.value;
 
-    const response = await fetch(`/api/inventory/items?${queryParams}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error('API request failed')
-    }
-
-    const data = await response.json()
+    const response = await getInventoryItems(params);
+    const data = response.data;
     if (data.code === 200 && data.data?.items) {
-      searchResults.value = data.data.items
-      total.value = data.data.total || 0
+      searchResults.value = data.data.items;
+      total.value = data.data.total || 0;
     } else {
-      searchResults.value = [mockResult]
-      total.value = 1
-      ElMessage.warning('数据格式异常，已显示默认结果')
+      searchResults.value = [mockResult];
+      total.value = 1;
+      ElMessage.warning('数据格式异常，已显示默认结果');
     }
   } catch (error) {
-    console.error('Search failed:', error)
-    searchResults.value = [mockResult]
-    total.value = 1
-    ElMessage.warning('无法获取后端数据，已显示默认结果')
+    console.error('Search failed:', error);
+    searchResults.value = [mockResult];
+    total.value = 1;
+    ElMessage.warning('无法获取后端数据，已显示默认结果');
   }
-}
+};
 
 // Edit record（匹配接口 /api/inventory/items/{id}）
-const handleEdit = (row: any) => {
-  editForm.value = { ...row }
-  editDialogVisible.value = true
-}
+const handleEdit = (row: InventoryItem) => {
+  editForm.value = { ...row };
+  editDialogVisible.value = true;
+};
 
 const saveEdit = async () => {
   try {
-    const response = await fetch(`/api/inventory/items/${editForm.value.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm.value),
-    })
-    if (!response.ok) throw new Error('编辑失败')
-    ElMessage.success('编辑成功')
-    editDialogVisible.value = false
-    await performSearch()
+    const updateData: InventoryItem = {
+      id: editForm.value.id,
+      model_number: editForm.value.model_number,
+      manufacturer: editForm.value.manufacturer,
+      specification: editForm.value.specification,
+      surface: editForm.value.surface,
+      category: editForm.value.category,
+      warehouse_num: editForm.value.warehouse_num,
+      total_pieces: editForm.value.total_pieces,
+      price_per_piece: editForm.value.price_per_piece,
+      pieces_per_box: editForm.value.pieces_per_box,
+      remark: editForm.value.remark || undefined,
+    };
+    const response = await updateInventoryItem(editForm.value.id!, updateData);
+    const data = response.data;
+    if (data.code === 200) {
+      ElMessage.success('编辑成功');
+      editDialogVisible.value = false;
+      await performSearch();
+    } else {
+      throw new Error('响应状态异常');
+    }
   } catch (error) {
-    console.error('Failed to update inventory record:', error)
-    ElMessage.error('编辑失败，请稍后重试')
+    console.error('Failed to update inventory record:', error);
+    ElMessage.error('编辑失败，请稍后重试');
   }
-}
+};
 
 // Delete record（匹配接口 /api/inventory/items/{id}）
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: InventoryItem) => {
   try {
     await ElMessageBox.confirm('确定删除此库存记录吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning',
-    })
-    const response = await fetch(`/api/inventory/items/${row.id}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-    })
-    if (!response.ok) throw new Error('删除失败')
-    ElMessage.success('删除成功')
-    await performSearch()
+    });
+    const response = await deleteInventoryItem(row.id!);
+    const data = response.data;
+    if (data.code === 200) {
+      ElMessage.success('删除成功');
+      await performSearch();
+    } else {
+      throw new Error('响应状态异常');
+    }
   } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Failed to delete inventory record:', error)
-      ElMessage.error('删除失败，请稍后重试')
+    if ((error as any).message !== 'cancel') {
+      console.error('Failed to delete inventory record:', error);
+      ElMessage.error('删除失败，请稍后重试');
     }
   }
-}
+};
 
 // Pagination handler
 const handlePageChange = (newPage: number) => {
-  page.value = newPage
-  performSearch()
-}
+  page.value = newPage;
+  performSearch();
+};
 
 const handleSizeChange = (newSize: number) => {
-  size.value = newSize
-  performSearch()
-}
+  size.value = newSize;
+  page.value = 1; // Reset to first page
+  performSearch();
+};
 </script>
 
 <template>
@@ -190,12 +197,7 @@ const handleSizeChange = (newSize: number) => {
       </div>
     </div>
     <div class="button-section">
-      <el-button
-          type="primary"
-          round
-          class="search-btn"
-          @click="performSearch"
-      >
+      <el-button type="primary" round class="search-btn" @click="performSearch">
         搜索
       </el-button>
     </div>
@@ -284,7 +286,7 @@ const handleSizeChange = (newSize: number) => {
           <el-input v-model.number="editForm.pieces_per_box" type="number" />
         </el-form-item>
         <el-form-item label="单片价格">
-          <el-input v-model.number="editForm.price_per_piece" type="number" />
+          <el-input v-model.number="editForm.price_per_piece" type="number" step="0.01" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="editForm.remark" type="textarea" />
@@ -379,7 +381,6 @@ const handleSizeChange = (newSize: number) => {
   margin-top: 16px;
 }
 
-/* Pagination styling */
 .pagination-container {
   display: flex;
   justify-content: center;

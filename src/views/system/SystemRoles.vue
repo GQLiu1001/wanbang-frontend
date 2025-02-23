@@ -1,66 +1,53 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-
-// 用户列表数据
-interface User {
-  username: string
-  phone: string
-  role_key: string
-  description: string
-}
+import { ref, onMounted } from 'vue';
+import { ElMessage } from 'element-plus';
+import { getUsers } from '@/api/user';
+import type { User, PaginationParams } from '@/types/api';
 
 // Store user list and pagination state
-const userList = ref<User[]>([])
-const page = ref(1) // 当前页码
-const size = ref(10) // 每页条数
-const total = ref(0) // 总记录数
+const userList = ref<User[]>([]);
+const page = ref(1); // 当前页码
+const size = ref(10); // 每页条数
+const total = ref(0); // 总记录数
 
-// Fetch user list with pagination
+// Fetch user list with pagination（匹配 /api/users）
 const fetchUserList = async () => {
   try {
-    const url = new URL('/api/users', window.location.origin)
-    url.searchParams.append('page', page.value.toString())
-    url.searchParams.append('size', size.value.toString())
+    const params: PaginationParams = {
+      page: page.value,
+      size: size.value,
+    };
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
-    if (!response.ok) {
-      throw new Error('获取用户列表失败')
-    }
-    const data = await response.json()
+    const response = await getUsers(params);
+    const data = response.data;
     if (data.code === 200 && data.data?.items) {
-      userList.value = data.data.items
-      total.value = data.data.total || 0
+      userList.value = data.data.items;
+      total.value = data.data.total || 0;
     } else {
-      throw new Error('数据格式异常')
+      throw new Error('数据格式异常');
     }
   } catch (error) {
-    console.error('Failed to fetch user list:', error)
-    ElMessage.error('获取用户列表失败，请稍后重试')
+    console.error('Failed to fetch user list:', error);
+    ElMessage.error('获取用户列表失败，请稍后重试');
   }
-}
+};
 
 // Pagination handlers
 const handlePageChange = (newPage: number) => {
-  page.value = newPage
-  fetchUserList()
-}
+  page.value = newPage;
+  fetchUserList();
+};
 
 const handleSizeChange = (newSize: number) => {
-  size.value = newSize
-  page.value = 1 // 重置到第一页
-  fetchUserList()
-}
+  size.value = newSize;
+  page.value = 1; // 重置到第一页
+  fetchUserList();
+};
 
-// 移除超级管理员检查和提升管理员功能，因为默认开放权限
+// 组件挂载时加载用户列表
 onMounted(() => {
-  fetchUserList() // 直接加载用户列表，无需权限检查
-})
+  fetchUserList();
+});
 </script>
 
 <template>
@@ -109,7 +96,6 @@ onMounted(() => {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-
   padding: 20px;
 }
 

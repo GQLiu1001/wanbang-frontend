@@ -1,42 +1,44 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, onMounted } from 'vue';
+import { ElMessage } from 'element-plus';
+import { getOrders } from '@/api/order';
+import { aftersalesPostService } from '@/api/aftersales';
+import type { Order, Aftersale, OrderQueryParams } from '@/types/api';
 
-// Mocked fallback data
-const mockRecord = {
+// Mocked fallback data（与 Order 类型一致）
+const mockRecord: Order = {
   order_no: 'ORD123456',
-  item_id: '1',
+  item_id: 1,
   model_number: 'TEST-MODEL',
   quantity: 10,
   adjusted_quantity: null,
   total_amount: 1000.00,
   adjusted_amount: null,
   customer_phone: '13812345678',
-  operator_id: '1',
+  operator_id: 1,
   order_remark: '测试订单',
   order_create_time: '2025-02-21 10:00:00',
   order_update_time: '2025-02-21 10:00:00',
-  aftersale_type: null, // 确保包含售后类型
-  aftersale_status: null // 确保包含售后状态
-}
+  aftersale_type: null,
+  aftersale_status: null,
+};
 
 // Store order records and search state
-const orderRecords = ref<any[]>([])
-const filteredRecords = ref<any[]>([])
-const searchDateRange = ref<[Date, Date] | []>([])
+const orderRecords = ref<Order[]>([]);
+const filteredRecords = ref<Order[]>([]);
+const searchDateRange = ref<[Date, Date] | []>([]);
 
 // Dialog control for aftersale
-const aftersaleDialogVisible = ref(false)
-const aftersaleForm = ref({
-  order_no: '',                // 订单编号
-  aftersale_type: null,        // 售后类型
-  aftersale_status: null,      // 售后状态
-  quantity_change: 0,          // 数量变化（负数退货，正数补货）
-  amount_change: 0,            // 金额变化（负数退款，正数补款）
-  resolution_result: '',       // 处理结果说明
-  aftersale_operator: '',      // 售后处理人ID
-  create_time: ''              // 创建时间
-})
+const aftersaleDialogVisible = ref(false);
+const aftersaleForm = ref<Aftersale>({
+  order_no: '',
+  aftersale_type: null,
+  aftersale_status: null,
+  quantity_change: 0,
+  amount_change: 0,
+  resolution_result: '',
+  aftersale_operator: 0,
+});
 
 // Define picker options for el-date-picker
 const pickerOptions = {
@@ -44,132 +46,130 @@ const pickerOptions = {
     {
       text: '最近一周',
       onClick(picker: any) {
-        const end = new Date()
-        const start = new Date()
-        start.setTime(start.getTime() - 3600 * 1000 * 24 * 7)
-        picker.$emit('pick', [start, end])
-      }
+        const end = new Date();
+        const start = new Date();
+        start.setTime(start.getTime() - 3600 * 1000 * 24 * 7);
+        picker.$emit('pick', [start, end]);
+      },
     },
     {
       text: '最近一个月',
       onClick(picker: any) {
-        const end = new Date()
-        const start = new Date()
-        start.setTime(start.getTime() - 3600 * 1000 * 24 * 30)
-        picker.$emit('pick', [start, end])
-      }
+        const end = new Date();
+        const start = new Date();
+        start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
+        picker.$emit('pick', [start, end]);
+      },
     },
     {
       text: '最近三个月',
       onClick(picker: any) {
-        const end = new Date()
-        const start = new Date()
-        start.setTime(start.getTime() - 3600 * 1000 * 24 * 90)
-        picker.$emit('pick', [start, end])
-      }
-    }
+        const end = new Date();
+        const start = new Date();
+        start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+        picker.$emit('pick', [start, end]);
+      },
+    },
   ],
   disabledDate(time: Date) {
-    const now = new Date()
-    const tenYearsAgo = now.getFullYear() - 10
-    const tenYearsLater = now.getFullYear() + 10
-    return time.getFullYear() < tenYearsAgo || time.getFullYear() > tenYearsLater
-  }
-}
+    const now = new Date();
+    const tenYearsAgo = now.getFullYear() - 10;
+    const tenYearsLater = now.getFullYear() + 10;
+    return time.getFullYear() < tenYearsAgo || time.getFullYear() > tenYearsLater;
+  },
+};
 
 // Fetch order records from API with fallback to mock data
 const fetchOrderRecords = async () => {
   try {
-    const url = new URL('/api/orders', window.location.origin)
+    const params: OrderQueryParams = {};
     if (searchDateRange.value.length === 2) {
-      const [startDate, endDate] = searchDateRange.value
-      url.searchParams.append('start_time', new Date(startDate).toISOString().slice(0, 19).replace('T', ' '))
-      url.searchParams.append('end_time', new Date(endDate).toISOString().slice(0, 19).replace('T', ' '))
+      const [startDate, endDate] = searchDateRange.value;
+      params.start_time = new Date(startDate).toISOString().slice(0, 19).replace('T', ' ');
+      params.end_time = new Date(endDate).toISOString().slice(0, 19).replace('T', ' ');
     }
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    })
-    if (!response.ok) {
-      throw new Error('API request failed')
-    }
-    const data = await response.json()
-    const records = (data.data?.items && data.data.items.length > 0) ? data.data.items : [mockRecord]
-    orderRecords.value = records
-    filteredRecords.value = records // Initialize filtered records
+    const response = await getOrders(params);
+    const data = response.data;
+    const records = data.data?.items && data.data.items.length > 0 ? data.data.items : [mockRecord];
+    orderRecords.value = records;
+    filteredRecords.value = records; // Initialize filtered records
   } catch (error) {
-    console.error('Failed to fetch order records:', error)
-    orderRecords.value = [mockRecord]
-    filteredRecords.value = [mockRecord]
-    ElMessage.warning('无法获取后端数据，已显示默认记录')
+    console.error('Failed to fetch order records:', error);
+    orderRecords.value = [mockRecord];
+    filteredRecords.value = [mockRecord];
+    ElMessage.warning('无法获取后端数据，已显示默认记录');
   }
-}
+};
 
 // Filter records by date range
 const filterByDateRange = () => {
-  fetchOrderRecords() // 直接调用API重新获取数据
-}
+  fetchOrderRecords(); // 直接调用 API 重新获取数据
+};
 
 // Load data on mount
 onMounted(() => {
-  fetchOrderRecords()
-})
+  fetchOrderRecords();
+});
 
 // Handle aftersale
-const handleAftersale = (row: any) => {
+const handleAftersale = (row: Order) => {
   aftersaleForm.value = {
-    order_no: row.order_no,
+    order_no: row.order_no || '',
     aftersale_type: null,
     aftersale_status: null,
     quantity_change: 0,
     amount_change: 0,
     resolution_result: '',
-    aftersale_operator: '',
-    create_time: new Date().toLocaleString()
-  }
-  aftersaleDialogVisible.value = true
-}
+    aftersale_operator: 0,
+  };
+  aftersaleDialogVisible.value = true;
+};
 
 const saveAftersale = async () => {
   try {
-    const response = await fetch('/api/aftersales', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(aftersaleForm.value),
-    })
-    if (!response.ok) throw new Error('售后记录创建失败')
-    const data = await response.json()
+    const submitData: Aftersale = {
+      order_no: aftersaleForm.value.order_no,
+      aftersale_type: aftersaleForm.value.aftersale_type!,
+      aftersale_status: aftersaleForm.value.aftersale_status!,
+      quantity_change: aftersaleForm.value.quantity_change,
+      amount_change: aftersaleForm.value.amount_change,
+      resolution_result: aftersaleForm.value.resolution_result || undefined,
+      aftersale_operator: Number(aftersaleForm.value.aftersale_operator),
+    };
+
+    const response = await aftersalesPostService(submitData);
+    const data = response.data;
     if (data.code === 201) {
-      ElMessage.success('售后记录创建成功')
-      aftersaleDialogVisible.value = false
-      await fetchOrderRecords()
-      filterByDateRange() // Re-apply filter after update
+      ElMessage.success('售后记录创建成功');
+      aftersaleDialogVisible.value = false;
+      await fetchOrderRecords();
+      filterByDateRange(); // Re-apply filter after update
     } else {
-      throw new Error('响应状态异常')
+      throw new Error('响应状态异常');
     }
   } catch (error) {
-    console.error('Failed to create aftersale record:', error)
-    ElMessage.error('售后记录创建失败，请稍后重试')
+    console.error('Failed to create aftersale record:', error);
+    ElMessage.error('售后记录创建失败，请稍后重试');
   }
-}
+};
 
 // Clear filter
 const clearFilter = () => {
-  searchDateRange.value = []
-  fetchOrderRecords()
-}
+  searchDateRange.value = [];
+  fetchOrderRecords();
+};
 
 // Aftersale type and status mapping
 const aftersaleTypeMap = {
   1: '买多退货退款',
-  2: '买少补货补款'
-}
+  2: '买少补货补款',
+};
 
 const aftersaleStatusMap = {
   1: '新建',
-  2: '已解决'
-}
+  2: '已解决',
+};
 </script>
 
 <template>
@@ -248,9 +248,7 @@ const aftersaleStatusMap = {
         </template>
       </el-table-column>
     </el-table>
-    <div v-else class="no-data">
-      暂无订单记录
-    </div>
+    <div v-else class="no-data">暂无订单记录</div>
 
     <!-- Aftersale Dialog -->
     <el-dialog v-model="aftersaleDialogVisible" title="创建售后记录" width="30%">
@@ -271,19 +269,29 @@ const aftersaleStatusMap = {
           </el-select>
         </el-form-item>
         <el-form-item label="数量变化" required>
-          <el-input v-model.number="aftersaleForm.quantity_change" type="number" placeholder="负数退货，正数补货" />
+          <el-input
+              v-model.number="aftersaleForm.quantity_change"
+              type="number"
+              placeholder="负数退货，正数补货"
+          />
         </el-form-item>
         <el-form-item label="金额变化" required>
-          <el-input v-model.number="aftersaleForm.amount_change" type="number" step="0.01" placeholder="负数退款，正数补款" />
+          <el-input
+              v-model.number="aftersaleForm.amount_change"
+              type="number"
+              step="0.01"
+              placeholder="负数退款，正数补款"
+          />
         </el-form-item>
         <el-form-item label="处理结果说明">
           <el-input v-model="aftersaleForm.resolution_result" type="textarea" :rows="3" />
         </el-form-item>
         <el-form-item label="售后处理人" required>
-          <el-input v-model="aftersaleForm.aftersale_operator" placeholder="请输入处理人ID" />
-        </el-form-item>
-        <el-form-item label="创建时间">
-          <el-input v-model="aftersaleForm.create_time" disabled />
+          <el-input
+              v-model.number="aftersaleForm.aftersale_operator"
+              placeholder="请输入处理人ID"
+              type="number"
+          />
         </el-form-item>
       </el-form>
       <template #footer>

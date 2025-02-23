@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, onMounted } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { getInventoryLogs, updateInventoryLog, deleteInventoryLog } from '@/api/inventoryLog';
+import type { InventoryLog, LogQueryParams } from '@/types/api';
 
-// Mocked fallback data（与inventory_log表字段一致）
-const mockRecord = {
+// Mocked fallback data（与 inventory_log 表字段一致）
+const mockRecord: InventoryLog = {
   id: 1,
   inventory_item_id: 1,
   operation_type: 1, // 固定为入库
@@ -13,163 +15,158 @@ const mockRecord = {
   target_warehouse: null,
   remark: '默认入库备注',
   create_time: '2025-02-22 14:00:00',
-  update_time: '2025-02-22 14:00:00'
-}
+  update_time: '2025-02-22 14:00:00',
+};
 
 // Store inventory records and search state
-const inventoryRecords = ref<any[]>([])
-const filteredRecords = ref<any[]>([])
-const searchDateRange = ref<[Date, Date] | []>([])
-const total = ref(0) // Total records
-const page = ref(1) // Current page
-const size = ref(10) // Page size
+const inventoryRecords = ref<InventoryLog[]>([]);
+const filteredRecords = ref<InventoryLog[]>([]);
+const searchDateRange = ref<[Date, Date] | []>([]);
+const total = ref(0); // Total records
+const page = ref(1); // Current page
+const size = ref(10); // Page size
 
 // Dialog control
-const editDialogVisible = ref(false)
-const editForm = ref({
+const editDialogVisible = ref(false);
+const editForm = ref<InventoryLog>({
   id: 0,
   inventory_item_id: 0,
   operation_type: 1, // 固定为入库
   quantity_change: 0,
   operator_id: 0,
-  source_warehouse: <number | null>null,
-  target_warehouse: <number | null>null,
+  source_warehouse: null,
+  target_warehouse: null,
   remark: '',
   create_time: '',
-  update_time: ''
-})
+  update_time: '',
+});
 
 // Define picker options for el-date-picker
 const pickerOptions = {
   disabledDate(time: Date) {
-    const now = new Date()
-    const tenYearsAgo = now.getFullYear() - 10
-    const tenYearsLater = now.getFullYear() + 10
-    return time.getFullYear() < tenYearsAgo || time.getFullYear() > tenYearsLater
-  }
-}
+    const now = new Date();
+    const tenYearsAgo = now.getFullYear() - 10;
+    const tenYearsLater = now.getFullYear() + 10;
+    return time.getFullYear() < tenYearsAgo || time.getFullYear() > tenYearsLater;
+  },
+};
 
-// Fetch inventory records from API（限定operation_type=1）
+// Fetch inventory records from API（限定 operation_type=1）
 const fetchInventoryRecords = async () => {
   try {
-    const url = new URL('/api/inventory/logs', window.location.origin)
-    url.searchParams.append('operation_type', '1') // 限定为入库记录
-    url.searchParams.append('page', page.value.toString())
-    url.searchParams.append('size', size.value.toString())
+    const params: LogQueryParams = {
+      page: page.value,
+      size: size.value,
+      operation_type: 1, // 限定为入库记录
+    };
     if (searchDateRange.value.length === 2) {
-      const [startDate, endDate] = searchDateRange.value
-      url.searchParams.append('start_time', new Date(startDate).toISOString().slice(0, 19).replace('T', ' '))
-      url.searchParams.append('end_time', new Date(endDate).toISOString().slice(0, 19).replace('T', ' '))
+      const [startDate, endDate] = searchDateRange.value;
+      params.start_time = new Date(startDate).toISOString().slice(0, 19).replace('T', ' ');
+      params.end_time = new Date(endDate).toISOString().slice(0, 19).replace('T', ' ');
     }
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    })
-    if (!response.ok) {
-      throw new Error('API request failed')
-    }
-    const data = await response.json()
+    const response = await getInventoryLogs(params);
+    const data = response.data;
     if (data.code === 200 && data.data?.items) {
-      inventoryRecords.value = data.data.items
-      filteredRecords.value = data.data.items
-      total.value = data.data.total || 0
+      inventoryRecords.value = data.data.items;
+      filteredRecords.value = data.data.items;
+      total.value = data.data.total || 0;
     } else {
-      inventoryRecords.value = [mockRecord]
-      filteredRecords.value = [mockRecord]
-      total.value = 1
-      ElMessage.warning('数据格式异常，已显示默认记录')
+      inventoryRecords.value = [mockRecord];
+      filteredRecords.value = [mockRecord];
+      total.value = 1;
+      ElMessage.warning('数据格式异常，已显示默认记录');
     }
   } catch (error) {
-    console.error('Failed to fetch inventory records:', error)
-    inventoryRecords.value = [mockRecord]
-    filteredRecords.value = [mockRecord]
-    total.value = 1
-    ElMessage.warning('无法获取后端数据，已显示默认记录')
+    console.error('Failed to fetch inventory records:', error);
+    inventoryRecords.value = [mockRecord];
+    filteredRecords.value = [mockRecord];
+    total.value = 1;
+    ElMessage.warning('无法获取后端数据，已显示默认记录');
   }
-}
+};
 
 // Load data on mount
 onMounted(() => {
-  fetchInventoryRecords()
-})
+  fetchInventoryRecords();
+});
 
 // Edit record（匹配接口 /api/inventory/logs/{id}）
-const handleEdit = (row: any) => {
-  editForm.value = { ...row }
-  editDialogVisible.value = true
-}
+const handleEdit = (row: InventoryLog) => {
+  editForm.value = { ...row };
+  editDialogVisible.value = true;
+};
 
 const saveEdit = async () => {
   try {
     // 确保 operation_type 固定为 1
-    editForm.value.operation_type = 1
-    const response = await fetch(`/api/inventory/logs/${editForm.value.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm.value),
-    })
-    if (!response.ok) throw new Error('编辑失败')
-    const data = await response.json()
+    editForm.value.operation_type = 1;
+    const updateData = {
+      inventory_item_id: editForm.value.inventory_item_id,
+      operation_type: editForm.value.operation_type,
+      quantity_change: editForm.value.quantity_change,
+      operator_id: editForm.value.operator_id,
+      source_warehouse: editForm.value.source_warehouse,
+      target_warehouse: editForm.value.target_warehouse,
+      remark: editForm.value.remark,
+    };
+    const response = await updateInventoryLog(editForm.value.id!, updateData);
+    const data = response.data;
     if (data.code === 200) {
-      ElMessage.success('编辑成功')
-      editDialogVisible.value = false
-      await fetchInventoryRecords()
+      ElMessage.success('编辑成功');
+      editDialogVisible.value = false;
+      await fetchInventoryRecords();
     } else {
-      throw new Error('响应状态异常')
+      throw new Error('响应状态异常');
     }
   } catch (error) {
-    console.error('Failed to update record:', error)
-    ElMessage.error('编辑失败，请稍后重试')
+    console.error('Failed to update record:', error);
+    ElMessage.error('编辑失败，请稍后重试');
   }
-}
+};
 
 // Delete record（匹配接口 /api/inventory/logs/{id}）
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: InventoryLog) => {
   try {
     await ElMessageBox.confirm('确定删除此入库记录吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning',
-    })
-    const response = await fetch(`/api/inventory/logs/${row.id}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-    })
-    if (!response.ok) throw new Error('删除失败')
-    const data = await response.json()
+    });
+    const response = await deleteInventoryLog(row.id!);
+    const data = response.data;
     if (data.code === 200) {
-      ElMessage.success('删除成功')
-      await fetchInventoryRecords()
+      ElMessage.success('删除成功');
+      await fetchInventoryRecords();
     } else {
-      throw new Error('响应状态异常')
+      throw new Error('响应状态异常');
     }
   } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Failed to delete record:', error)
-      ElMessage.error('删除失败，请稍后重试')
+    if ((error as any).message !== 'cancel') {
+      console.error('Failed to delete record:', error);
+      ElMessage.error('删除失败，请稍后重试');
     }
   }
-}
+};
 
 // Clear filter and refresh
 const clearFilter = () => {
-  searchDateRange.value = []
-  page.value = 1 // 重置到第一页
-  fetchInventoryRecords()
-}
+  searchDateRange.value = [];
+  page.value = 1; // 重置到第一页
+  fetchInventoryRecords();
+};
 
 // Pagination handlers
 const handlePageChange = (newPage: number) => {
-  page.value = newPage
-  fetchInventoryRecords()
-}
+  page.value = newPage;
+  fetchInventoryRecords();
+};
 
 const handleSizeChange = (newSize: number) => {
-  size.value = newSize
-  page.value = 1 // 重置到第一页
-  fetchInventoryRecords()
-}
+  size.value = newSize;
+  page.value = 1; // 重置到第一页
+  fetchInventoryRecords();
+};
 </script>
 
 <template>
@@ -231,9 +228,7 @@ const handleSizeChange = (newSize: number) => {
         </template>
       </el-table-column>
     </el-table>
-    <div v-else class="no-data">
-      暂无入库记录
-    </div>
+    <div v-else class="no-data">暂无入库记录</div>
 
     <!-- Pagination -->
     <div class="pagination-container">
@@ -301,7 +296,7 @@ const handleSizeChange = (newSize: number) => {
 .pagination-container {
   display: flex;
   justify-content: center;
-  margin-top: 20px; /* 与上一个版本一致的分页间距 */
+  margin-top: 20px;
   padding-bottom: 20px;
 }
 </style>
