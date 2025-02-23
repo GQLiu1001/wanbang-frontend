@@ -4,6 +4,10 @@ import LoginView from '@/views/Login.vue';
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/login',
+      redirect: '/',
+    },
     // 登录页面
     {
       path: '/',

@@ -2,11 +2,22 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import router from '@/router';
 import { ChromeFilled, Location, DocumentCopy, Box, Search, Upload, Monitor, Switch, Document, FolderChecked, Van, Service, Setting, User, Lock, Menu } from '@element-plus/icons-vue';
+import { ElMessage, ElMessageBox } from "element-plus";
+import { useUserStore } from "@/stores/user.ts";
+
+// 获取当前用户信息
+const userStore = useUserStore();
+const currentUser = userStore.getUserInfo();
+
+if (!currentUser) {
+  ElMessage.error('未登录，请先登录');
+  router.push('/login');
+}
 
 // 控制侧边栏是否折叠
 const isCollapse = ref(false);
 
-// 处理菜单点击事件（已使用 router 属性，无需手动处理）
+// 处理菜单点击事件
 const handleMenuSelect = (index: string) => {
   console.log(`跳转到: ${index}`);
   router.push(index);
@@ -16,15 +27,33 @@ const handleMenuSelect = (index: string) => {
 const currentTime = ref(new Date().toLocaleTimeString());
 let timer: number | null = null;
 
+// 退出登录方法
+const handleLogout = () => {
+  ElMessageBox.confirm('确定要退出登录吗?', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  })
+      .then(() => {
+        // 清理用户信息
+        userStore.clearUserInfo();
+        localStorage.clear();
+        sessionStorage.clear();
+        ElMessage.success('退出登录成功');
+        router.push('/login');
+      })
+      .catch(() => {
+        ElMessage.info('已取消退出');
+      });
+};
+
 onMounted(() => {
-  // 每秒更新时间
   timer = setInterval(() => {
     currentTime.value = new Date().toLocaleTimeString();
   }, 1000);
 });
 
 onUnmounted(() => {
-  // 组件卸载时清理定时器
   if (timer) {
     clearInterval(timer);
   }
@@ -143,13 +172,13 @@ onUnmounted(() => {
           <div class="header-right">
             <el-dropdown>
               <span class="user-info">
-                <el-avatar size="small" :src="avatarUrl" />
+                <el-avatar size="small" :src="userStore.getUserInfo().avatar" />
                 <span class="username">管理员</span>
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item>个人中心</el-dropdown-item>
-                  <el-dropdown-item>退出登录</el-dropdown-item>
+                  <el-dropdown-item @click="router.push('/dashboard/system/users')">个人中心</el-dropdown-item>
+                  <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -168,7 +197,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* 样式保持不变 */
 :host {
   display: block;
   margin: 0;

@@ -1,32 +1,89 @@
 import axios, {
     type AxiosInstance,
     type AxiosResponse,
-    type InternalAxiosRequestConfig
+    type InternalAxiosRequestConfig,
 } from 'axios';
+import MockAdapter from 'axios-mock-adapter';
 import { ElMessage } from 'element-plus';
-import router from "@/router"; // 假设使用 Element Plus 的消息提示
-
+import router from '@/router';
+import defaultAvatar from '@/assets/default_avatar.png'
 // 创建 Axios 实例
 const instance: AxiosInstance = axios.create({
-    baseURL: 'http://api.example.com', // 你的 API 基础地址
-    timeout: 10000, // 请求超时时间（毫秒）
+    baseURL: 'http://api.example.com', // 可以保留，但不会实际请求
+    timeout: 10000,
     headers: {
-        'Content-Type': 'application/json', // 默认请求头
+        'Content-Type': 'application/json',
     },
+});
+
+// 创建 Mock 实例
+const mock = new MockAdapter(instance, { delayResponse: 500 }); // 模拟 500ms 延迟
+
+// Mock 登录接口
+mock.onPost('/auth/login').reply((config) => {
+    const { username, password } = JSON.parse(config.data);
+    if (username === 'admin' && password === '123456') {
+        return [
+            200,
+            {
+                code: 0,
+                message: '登录成功',
+                data: {
+                    token: 'mock-token-123456',
+                    user: {
+                        id: 1,
+                        username: 'admin',
+                        avatar: defaultAvatar,
+                        phone: '13800138000',
+                    },
+                },
+            },
+        ];
+    }
+    return [401, { code: 1, message: '用户名或密码错误' }];
+});
+
+// Mock 注册接口
+mock.onPost('/auth/register').reply((config) => {
+    const { username } = JSON.parse(config.data);
+    if (username === 'admin') {
+        return [400, { code: 1, message: '用户名已存在' }];
+    }
+    return [201, { code: 0, message: '注册成功', data: null }];
+});
+
+// Mock 重置密码接口
+mock.onPost('/auth/reset-password').reply((config) => {
+    const { username, phone } = JSON.parse(config.data);
+    if (username === 'admin' && phone === '13800138000') {
+        return [200, { code: 0, message: '密码重置成功', data: null }];
+    }
+    return [400, { code: 1, message: '用户名或手机号不匹配' }];
+});
+
+// Mock 修改用户信息接口
+mock.onPut(/\/api\/users\/\d+/).reply((config) => {
+    const data = JSON.parse(config.data);
+    return [
+        200,
+        {
+            code: 0,
+            message: '修改成功',
+            data: null,
+        },
+    ];
 });
 
 // 请求拦截器
 instance.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        // 在发送请求之前做些什么
         const token = localStorage.getItem('token');
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
-        return config; // 返回 InternalAxiosRequestConfig 类型
+        return config;
     },
     (error) => {
-        // 请求错误处理
         console.error('请求拦截器错误:', error);
         return Promise.reject(error);
     }
@@ -35,12 +92,8 @@ instance.interceptors.request.use(
 // 响应拦截器
 instance.interceptors.response.use(
     (response: AxiosResponse) => {
-        // 对响应数据做些什么
         const { data, status } = response;
-
-        // 1. 检查状态码（自定义逻辑）
-        if (status === 200) {
-            // 假设后端返回格式为 { code: number, data: any, message: string }
+        if (status === 200 || status === 201) {
             if (data.code === 0) {
                 return data.data; // 返回实际数据
             } else {
@@ -48,14 +101,10 @@ instance.interceptors.response.use(
                 return Promise.reject(new Error(data.message || '请求失败'));
             }
         }
-
-        return response; // 如果不处理，直接返回原始响应
+        return response;
     },
     (error) => {
-        // 对响应错误做些什么
         const { response, message } = error;
-
-        // 1. 根据状态码处理常见错误
         if (response) {
             switch (response.status) {
                 case 400:
@@ -63,7 +112,6 @@ instance.interceptors.response.use(
                     break;
                 case 401:
                     ElMessage.error('未授权，请重新登录');
-                    // 可以跳转到登录页
                     router.push('/login');
                     break;
                 case 403:
@@ -83,11 +131,9 @@ instance.interceptors.response.use(
         } else {
             ElMessage.error('网络异常，请稍后重试');
         }
-
         console.error('响应拦截器错误:', error);
         return Promise.reject(error);
     }
 );
 
-// 导出封装好的实例
 export default instance;

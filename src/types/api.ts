@@ -1,3 +1,28 @@
+// 用户登录请求参数
+export interface LoginRequest {
+    username: string;
+    password: string;
+}
+
+// 用户注册请求参数
+export interface RegisterRequest {
+    username: string;
+    password: string;
+    phone: string;
+}
+
+// 重置密码请求参数
+export interface ResetPasswordRequest {
+    username: string;
+    phone: string;
+    newPassword: string;
+}
+
+// 修改密码请求参数
+export interface ChangePasswordRequest {
+    oldPassword: string;
+    newPassword: string;
+}
 // 库存项模型
 export interface InventoryItem {
     id?: number; // 可选，因为新建时没有 id

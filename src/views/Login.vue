@@ -4,14 +4,32 @@
     <div class="login-container" v-if="currentForm === 'login'">
       <h1>Login</h1>
       <form class="login-form" @submit.prevent="handleLogin">
-        <input type="text" placeholder="Username" class="rounded-input" />
-        <input type="password" placeholder="Password" class="rounded-input" />
+        <input
+            v-model="loginForm.username"
+            type="text"
+            placeholder="Username"
+            class="rounded-input"
+            required
+        />
+        <input
+            v-model="loginForm.password"
+            type="password"
+            placeholder="Password"
+            class="rounded-input"
+            required
+        />
         <div class="forgot-password">
           <a href="#" @click.prevent="currentForm = 'forgot'">Forgot Password?</a>
         </div>
         <div class="button-container">
           <button type="submit" class="rounded-button">Login</button>
-          <button type="button" class="rounded-button register-button" @click="currentForm = 'register'">Register</button>
+          <button
+              type="button"
+              class="rounded-button register-button"
+              @click="currentForm = 'register'"
+          >
+            Register
+          </button>
         </div>
       </form>
     </div>
@@ -20,10 +38,29 @@
     <div class="login-container" v-if="currentForm === 'register'">
       <button class="back-button" @click="currentForm = 'login'">Back</button>
       <h1>Register</h1>
-      <form class="login-form" @submit.prevent>
-        <input type="text" placeholder="Username" class="rounded-input" />
-        <input type="password" placeholder="Password" class="rounded-input" />
-        <input type="tel" placeholder="Phone" class="rounded-input" />
+      <form class="login-form" @submit.prevent="handleRegister">
+        <input
+            v-model="registerForm.username"
+            type="text"
+            placeholder="Username"
+            class="rounded-input"
+            required
+        />
+        <input
+            v-model="registerForm.password"
+            type="password"
+            placeholder="Password"
+            class="rounded-input"
+            required
+        />
+        <input
+            v-model="registerForm.phone"
+            type="tel"
+            placeholder="Phone"
+            class="rounded-input"
+            maxlength="11"
+            required
+        />
         <div class="button-container">
           <button type="submit" class="rounded-button">Complete</button>
         </div>
@@ -34,10 +71,29 @@
     <div class="login-container" v-if="currentForm === 'forgot'">
       <button class="back-button" @click="currentForm = 'login'">Back</button>
       <h1>Reset Password</h1>
-      <form class="login-form" @submit.prevent>
-        <input type="text" placeholder="Username" class="rounded-input" />
-        <input type="tel" placeholder="Phone" class="rounded-input" />
-        <input type="password" placeholder="New Password" class="rounded-input" />
+      <form class="login-form" @submit.prevent="handleResetPassword">
+        <input
+            v-model="resetForm.username"
+            type="text"
+            placeholder="Username"
+            class="rounded-input"
+            required
+        />
+        <input
+            v-model="resetForm.phone"
+            type="tel"
+            placeholder="Phone"
+            class="rounded-input"
+            maxlength="11"
+            required
+        />
+        <input
+            v-model="resetForm.newPassword"
+            type="password"
+            placeholder="New Password"
+            class="rounded-input"
+            required
+        />
         <div class="button-container">
           <button type="submit" class="rounded-button">Complete</button>
         </div>
@@ -47,15 +103,85 @@
 </template>
 
 <script setup lang="ts">
-import router from "@/router";
 import { ref } from 'vue';
+import { useUserStore } from '@/stores/user';
+import { loginService, registerService, resetPasswordService } from '@/api/auth';
+import type { LoginRequest, RegisterRequest, ResetPasswordRequest } from '@/types/api';
+import router from '@/router';
+import { ElMessage } from 'element-plus';
 
-const currentForm = ref('login'); // 控制显示哪个表单
+// 表单状态
+const currentForm = ref<'login' | 'register' | 'forgot'>('login');
 
-function handleLogin() {
-  router.push('/dashboard');
-}
+// 登录表单数据
+const loginForm = ref<LoginRequest>({
+  username: '',
+  password: '',
+});
+
+// 注册表单数据
+const registerForm = ref<RegisterRequest>({
+  username: '',
+  password: '',
+  phone: '',
+});
+
+// 重置密码表单数据
+const resetForm = ref<ResetPasswordRequest>({
+  username: '',
+  phone: '',
+  newPassword: '',
+});
+
+// 使用 Pinia Store
+const userStore = useUserStore();
+
+// 处理登录
+const handleLogin = async () => {
+  try {
+    const response = await loginService(loginForm.value);
+    const { token, user } = response;
+    localStorage.setItem('token', token);
+    userStore.setUserInfo({
+      id: user.id,
+      username: user.username,
+      avatar: user.avatar || '',
+      phone: user.phone || '',
+    });
+    ElMessage.success('登录成功');
+    router.push('/dashboard');
+  } catch (error) {
+    console.error('登录失败:', error);
+  }
+};
+
+// 处理注册
+const handleRegister = async () => {
+  try {
+    await registerService(registerForm.value);
+    ElMessage.success('注册成功，请登录');
+    currentForm.value = 'login';
+    registerForm.value = { username: '', password: '', phone: '' };
+  } catch (error) {
+    console.error('注册失败:', error);
+  }
+};
+
+// 处理重置密码
+const handleResetPassword = async () => {
+  try {
+    await resetPasswordService(resetForm.value);
+    ElMessage.success('密码重置成功，请登录');
+    currentForm.value = 'login';
+    resetForm.value = { username: '', phone: '', newPassword: '' };
+  } catch (error) {
+    console.error('重置密码失败:', error);
+  }
+};
 </script>
+
+
+
 
 <style scoped>
 :host {
