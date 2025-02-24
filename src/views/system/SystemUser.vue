@@ -106,7 +106,7 @@ const userId = ref<number>(currentUser?.id || 0);
 
 // 上传 headers（带上鉴权 token）
 const uploadHeaders = ref({
-  Authorization: `Bearer ${localStorage.getItem('token') || ''}`, // 假设使用 Sa-Token 的 token
+  satoken: localStorage.getItem('token') || '',
 });
 
 // 头像上传前验证
