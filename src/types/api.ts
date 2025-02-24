@@ -93,7 +93,14 @@ export interface User {
     role_key?: string; // 查询时返回
     description?: string; // 查询时返回
 }
-
+//查询所有用户表单
+export interface UserList {
+    id?: number; // 可选，因为新建时没有 id
+    username: string;
+    phone: string;
+    role_key?: string; // 查询时返回
+    description?: string; // 查询时返回
+}
 // 分页查询参数
 export interface PaginationParams {
     page?: number;
