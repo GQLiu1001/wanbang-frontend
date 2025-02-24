@@ -101,7 +101,6 @@
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useUserStore } from '@/stores/user';
@@ -109,49 +108,56 @@ import { loginService, registerService, resetPasswordService } from '@/api/auth'
 import type { LoginRequest, RegisterRequest, ResetPasswordRequest } from '@/types/api';
 import router from '@/router';
 import { ElMessage } from 'element-plus';
-
 // 表单状态
 const currentForm = ref<'login' | 'register' | 'forgot'>('login');
-
 // 登录表单数据
 const loginForm = ref<LoginRequest>({
   username: '',
   password: '',
 });
-
 // 注册表单数据
 const registerForm = ref<RegisterRequest>({
   username: '',
   password: '',
   phone: '',
 });
-
 // 重置密码表单数据
 const resetForm = ref<ResetPasswordRequest>({
   username: '',
   phone: '',
   newPassword: '',
 });
-
 // 使用 Pinia Store
 const userStore = useUserStore();
-
 // 处理登录
 const handleLogin = async () => {
   try {
     const response = await loginService(loginForm.value);
-    const token = response.headers['satoken']; // 从响应头获取
+    // 从 set-cookie 头解析 satoken
+    const setCookieHeader = response.headers['set-cookie'];
+    let token = 'satoken';
+    if (setCookieHeader && Array.isArray(setCookieHeader)) {
+      const cookie = setCookieHeader.find((c) => c.startsWith('satoken='));
+      if (cookie) {
+        token = cookie.split(';')[0].replace('satoken=', ''); // 提取 token 值
+      }
+    }
+    if (!token) {
+      throw new Error('未找到 satoken');
+    }
     const user = response.data.data.user; // 注意这里是 data.data.user
     if (!user) {
       throw new Error('用户信息未返回');
     }
-    localStorage.setItem('token', token);
+    localStorage.setItem('satoken', token); // 只存储 token 值
+    console.log('登录成功，token:', token);
+    console.log('用户信息:', user);
     userStore.setUserInfo({
       id: user.id,
       username: user.username,
-      avatar: user.avatar || '',
-      phone: user.phone || '',
-      role_key: user.role_key || '',
+      avatar: user.avatar,
+      phone: user.phone,
+      role_id: user.role_id,
     });
     ElMessage.success('登录成功');
     router.push('/dashboard');

@@ -6,7 +6,7 @@ import { fetchTotalSalesAmount, fetchTodaySalesAmount, fetchSalesTrend, fetchTop
 
 // 数据定义（初始为空，等待 API 填充）
 const salesData = ref<{ dates: string[]; values: number[] }>({ dates: [], values: [] });
-const topProducts = ref<{ model_number: string; sales: number; total_amount: number }[]>([]);
+const topProducts = ref<{ model_number: string; sales: number; }[]>([]);
 const totalSalesAmount = ref<number>(0);
 const todaySalesAmount = ref<number>(0);
 
@@ -23,8 +23,8 @@ const fetchSalesData = async () => {
     ElMessage.warning('无法获取销量趋势数据，已显示默认数据');
     // 默认数据作为备用
     salesData.value = {
-      dates: ['2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06'],
-      values: [120, 200, 150, 300, 250, 400],
+      dates: ['2024-12','2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06'],
+      values: [120, 200, 150, 330, 250, 400],
     };
   }
 };
@@ -39,11 +39,11 @@ const fetchTopProductsData = async () => {
     ElMessage.warning('无法获取最火爆卖品数据，已显示默认数据');
     // 默认数据作为备用
     topProducts.value = [
-      { model_number: 'MODEL-A', sales: 500, total_amount: 50000 },
-      { model_number: 'MODEL-B', sales: 450, total_amount: 45000 },
-      { model_number: 'MODEL-C', sales: 300, total_amount: 30000 },
-      { model_number: 'MODEL-D', sales: 200, total_amount: 20000 },
-      { model_number: 'MODEL-E', sales: 150, total_amount: 15000 },
+      { model_number: 'MODEL-A', sales: 500},
+      { model_number: 'MODEL-B', sales: 450},
+      { model_number: 'MODEL-C', sales: 300},
+      { model_number: 'MODEL-D', sales: 200},
+      { model_number: 'MODEL-E', sales: 150},
     ];
   }
 };
