@@ -4,6 +4,7 @@ import router from '@/router';
 import { ChromeFilled, Location, DocumentCopy, Box, Search, Upload, Monitor, Switch, Document, FolderChecked, Van, Service, Setting, User, Lock, Menu } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useUserStore } from "@/stores/user.ts";
+import instance from '@/utils/axios';
 
 // 获取当前用户信息
 const userStore = useUserStore();
@@ -34,13 +35,20 @@ const handleLogout = () => {
     cancelButtonText: '取消',
     type: 'warning'
   })
-      .then(() => {
-        // 清理用户信息
-        userStore.clearUserInfo();
-        localStorage.clear();
-        sessionStorage.clear();
-        ElMessage.success('退出登录成功');
-        router.push('/login');
+      .then(async () => {
+        try {
+          // 调用后端登出接口，依赖拦截器设置 satoken
+          await instance.post('/auth/logout');
+          // 清理用户信息
+          userStore.clearUserInfo();
+          localStorage.clear();
+          sessionStorage.clear();
+          ElMessage.success('退出登录成功');
+          router.push('/login');
+        } catch (error) {
+          ElMessage.error('退出登录失败，请重试');
+          console.error(error);
+        }
       })
       .catch(() => {
         ElMessage.info('已取消退出');

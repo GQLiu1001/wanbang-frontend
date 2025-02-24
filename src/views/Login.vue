@@ -140,13 +140,18 @@ const userStore = useUserStore();
 const handleLogin = async () => {
   try {
     const response = await loginService(loginForm.value);
-    const { token, user } = response;
+    const token = response.headers['satoken']; // 从响应头获取
+    const user = response.data.data.user; // 注意这里是 data.data.user
+    if (!user) {
+      throw new Error('用户信息未返回');
+    }
     localStorage.setItem('token', token);
     userStore.setUserInfo({
       id: user.id,
       username: user.username,
       avatar: user.avatar || '',
       phone: user.phone || '',
+      role_key: user.role_key || '',
     });
     ElMessage.success('登录成功');
     router.push('/dashboard');

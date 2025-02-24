@@ -77,7 +77,7 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
-import { updateUser } from '@/api/user';
+import {updateUser, uploadFile} from '@/api/user';
 import axios from '@/utils/axios.ts';
 import { Plus } from '@element-plus/icons-vue';
 import router from '@/router';
@@ -125,15 +125,11 @@ const beforeAvatarUpload = (file: File) => {
 };
 
 // 头像上传成功回调
-const handleAvatarSuccess = (response: any, file: File, fileList: any) => {
+const handleAvatarSuccess = async (file: File) => {
   try {
-    const { code, message, data } = response;
-    if (code === 200) {
-      userForm.value.avatar = data.fileUrl; // 后端返回的 fileUrl
-      ElMessage.success('头像上传成功');
-    } else {
-      ElMessage.error(message || '头像上传失败');
-    }
+    const response = await uploadFile(file);
+    userForm.value.avatar = response.data.fileUrl;
+    ElMessage.success('头像上传成功');
   } catch (error) {
     console.error('头像上传失败:', error);
     ElMessage.error('头像上传失败，请重试');

@@ -1,16 +1,27 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
-import { getUsers } from '@/api/user';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { getUsers, deleteUser } from '@/api/user';
 import type { User, PaginationParams } from '@/types/api';
+import { useUserStore } from '@/stores/user';
 
 // Store user list and pagination state
 const userList = ref<User[]>([]);
-const page = ref(1); // 当前页码
-const size = ref(10); // 每页条数
-const total = ref(0); // 总记录数
+const page = ref(1);
+const size = ref(10);
+const total = ref(0);
 
-// Fetch user list with pagination（匹配 /api/users）
+// 获取当前用户信息
+const userStore = useUserStore();
+const currentUser = userStore.getUserInfo();
+
+// 判断当前用户是否有删除权限
+const hasDeletePermission = () => {
+  const currentUser = userStore.getUserInfo();
+  return currentUser?.role_key === 'admin';
+};
+
+// Fetch user list with pagination
 const fetchUserList = async () => {
   try {
     const params: PaginationParams = {
@@ -32,6 +43,39 @@ const fetchUserList = async () => {
   }
 };
 
+// 删除用户
+const handleDelete = async (userId: number, username: string) => {
+  if (!hasDeletePermission()) {
+    ElMessage.error('无权限执行删除操作');
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+        `确定要删除用户 "${username}" 吗？此操作不可恢复！`,
+        '删除确认',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning',
+        }
+    );
+
+    const response = await deleteUser(userId);
+    if (response.data.code === 200) {
+      ElMessage.success('删除成功');
+      await fetchUserList();
+    } else {
+      throw new Error(response.data.message || '删除失败');
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('Failed to delete user:', error);
+      ElMessage.error(error.message || '删除用户失败，请稍后重试');
+    }
+  }
+};
+
 // Pagination handlers
 const handlePageChange = (newPage: number) => {
   page.value = newPage;
@@ -40,11 +84,10 @@ const handlePageChange = (newPage: number) => {
 
 const handleSizeChange = (newSize: number) => {
   size.value = newSize;
-  page.value = 1; // 重置到第一页
+  page.value = 1;
   fetchUserList();
 };
 
-// 组件挂载时加载用户列表
 onMounted(() => {
   fetchUserList();
 });
@@ -59,10 +102,23 @@ onMounted(() => {
     <div class="user-list-container">
       <h2>所有用户</h2>
       <el-table :data="userList" style="width: 100%">
-        <el-table-column prop="username" label="用户名" width="200" />
-        <el-table-column prop="phone" label="手机号" width="200" />
-        <el-table-column prop="role_key" label="角色标识" width="150" />
-        <el-table-column prop="description" label="角色描述" min-width="200" />
+        <!-- Remove fixed widths and let columns distribute evenly -->
+        <el-table-column prop="id" label="用户id" />
+        <el-table-column prop="username" label="用户名" />
+        <el-table-column prop="phone" label="手机号" />
+        <el-table-column prop="role_key" label="角色标识" />
+        <el-table-column prop="description" label="角色描述" />
+        <el-table-column label="操作" v-if="hasDeletePermission()">
+          <template #default="{ row }">
+            <el-button
+                type="danger"
+                size="small"
+                @click="handleDelete(row.id, row.username)"
+            >
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <!-- Pagination -->
@@ -118,5 +174,14 @@ hr {
   justify-content: center;
   margin-top: 20px;
   padding-bottom: 20px;
+}
+
+/* Ensure table columns are evenly spaced */
+.el-table th, .el-table td {
+  text-align: center; /* Center-align text for better appearance */
+}
+
+.el-table .el-table__cell {
+  padding: 10px; /* Adjust padding for consistency */
 }
 </style>
