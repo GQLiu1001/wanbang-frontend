@@ -28,7 +28,6 @@ export const uploadFile = (file: File) => {
     formData.append('file', file); // 上传文件
     formData.append('fileName', file.name); // 可选，文件名
     formData.append('fileType', file.type); // 可选，文件类型
-
     return axios.post<{ fileUrl: string }>('/api/upload', formData, {
         headers: {
             'Content-Type': 'multipart/form-data',
