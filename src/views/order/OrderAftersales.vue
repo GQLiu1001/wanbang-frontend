@@ -27,6 +27,7 @@ const mockRecord: Order = {
 const orderRecords = ref<Order[]>([]);
 const filteredRecords = ref<Order[]>([]);
 const searchDateRange = ref<[Date, Date] | []>([]);
+const searchPhone = ref<string>(''); // 新增手机号搜索状态
 
 // Dialog control for aftersale
 const aftersaleDialogVisible = ref(false);
@@ -88,12 +89,15 @@ const fetchOrderRecords = async () => {
       params.start_time = new Date(startDate).toISOString().slice(0, 19).replace('T', ' ');
       params.end_time = new Date(endDate).toISOString().slice(0, 19).replace('T', ' ');
     }
+    if (searchPhone.value.trim()) { // 新增手机号搜索参数
+      params.customer_phone = searchPhone.value.trim();
+    }
 
     const response = await getOrders(params);
     const data = response.data;
     const records = data.data?.items && data.data.items.length > 0 ? data.data.items : [mockRecord];
     orderRecords.value = records;
-    filteredRecords.value = records; // Initialize filtered records
+    filteredRecords.value = records;
   } catch (error) {
     console.error('Failed to fetch order records:', error);
     orderRecords.value = [mockRecord];
@@ -102,7 +106,7 @@ const fetchOrderRecords = async () => {
   }
 };
 
-// Filter records by date range
+// Filter records by date range and phone
 const filterByDateRange = () => {
   fetchOrderRecords(); // 直接调用 API 重新获取数据
 };
@@ -144,7 +148,7 @@ const saveAftersale = async () => {
       ElMessage.success('售后记录创建成功');
       aftersaleDialogVisible.value = false;
       await fetchOrderRecords();
-      filterByDateRange(); // Re-apply filter after update
+      filterByDateRange();
     } else {
       throw new Error('响应状态异常');
     }
@@ -157,6 +161,7 @@ const saveAftersale = async () => {
 // Clear filter
 const clearFilter = () => {
   searchDateRange.value = [];
+  searchPhone.value = ''; // 清空手机号搜索
   fetchOrderRecords();
 };
 
@@ -188,6 +193,16 @@ const aftersaleStatusMap = {
               end-placeholder="结束日期"
               :picker-options="pickerOptions"
               @change="filterByDateRange"
+          />
+        </el-form-item>
+      </el-col>
+      <el-col :span="8"> <!-- 新增手机号搜索栏 -->
+        <el-form-item label="按手机号筛选">
+          <el-input
+              v-model="searchPhone"
+              placeholder="输入客户手机号"
+              clearable
+              @input="fetchOrderRecords"
           />
         </el-form-item>
       </el-col>
