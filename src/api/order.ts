@@ -32,9 +32,27 @@ export const fetchTodaySalesAmount = () => {
     return axios.get<{ today_amount: number }>('/api/sales/today-amount');
 };
 
-// 新增：获取销售趋势数据
 export const fetchSalesTrend = () => {
-    return axios.get<{ dates: string[]; values: number[] }>('/api/sales/trend');
+    // 根据当前日期（2025-02-26）计算最近五个月的范围
+    const currentDate = new Date();
+    const endMonth = new Date(currentDate);
+    endMonth.setMonth(endMonth.getMonth() - 1); // 取上个月（2025-01）
+    const startMonth = new Date(endMonth);
+    startMonth.setMonth(startMonth.getMonth() - 4); // 回溯 4 个月（2024-09）
+
+    const startMonthStr = startMonth.toISOString().slice(0, 7); // 格式化为 "YYYY-MM"
+    const endMonthStr = endMonth.toISOString().slice(0, 7);
+
+    return axios.get<{
+        dates: string[];
+        salesValues: number[];
+        amounts: number[];
+    }>('/api/sales/trend/', {
+        params: {
+            start_month: startMonthStr,
+            end_month: endMonthStr,
+        },
+    });
 };
 
 // 新增：获取最火爆卖品数据
