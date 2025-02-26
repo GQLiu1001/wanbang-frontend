@@ -4,32 +4,33 @@
     <hr />
     <el-form :model="userForm" label-width="100px" class="user-form">
       <el-form-item label="" class="avatar-item">
-        <el-upload
-            class="avatar-uploader"
-            action="/api/upload"
-        :show-file-list="false"
-        :before-upload="beforeAvatarUpload"
-        :on-success="handleAvatarSuccess"
-        accept="image/*"
-        :headers="uploadHeaders"
-        method="post"
-        >
-        <div v-if="userForm.avatar" class="avatar-wrapper">
-          <img v-if="userForm.avatar" :src="userForm.avatar" class="avatar" />
-          <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-          <el-button
-              type="danger"
-              size="small"
-              class="remove-avatar-btn"
-              @click.stop="removeAvatar"
-          >
-            删除
-          </el-button>
+        <!-- 使用原生的文件上传组件，避免Element Plus的封装问题 -->
+        <div class="avatar-uploader">
+          <div v-if="userForm.avatar" class="avatar-wrapper">
+            <img :src="userForm.avatar" class="avatar" />
+            <el-button
+                type="danger"
+                size="small"
+                class="remove-avatar-btn"
+                @click="removeAvatar"
+            >
+              删除
+            </el-button>
+          </div>
+          <div v-else class="avatar-uploader-icon" @click="triggerFileInput">
+            <el-icon><Plus /></el-icon>
+          </div>
+          <input
+              type="file"
+              ref="fileInputRef"
+              style="display: none"
+              accept="image/*"
+              @change="handleFileChange"
+          />
         </div>
-        <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-        </el-upload>
       </el-form-item>
 
+      <!-- 其他表单项保持不变 -->
       <el-form-item label="用户名" required>
         <el-input v-model="userForm.username" placeholder="请输入用户名" />
       </el-form-item>
@@ -74,11 +75,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
-import {updateUser, uploadFile} from '@/api/user';
-import axios from '@/utils/axios.ts';
+import { updateUser } from '@/api/user';
 import { Plus } from '@element-plus/icons-vue';
 import router from '@/router';
 
@@ -90,6 +90,9 @@ if (!currentUser) {
   ElMessage.error('未登录，请先登录');
   router.push('/login');
 }
+
+// 文件输入引用
+const fileInputRef = ref<HTMLInputElement | null>(null);
 
 // 用户表单数据
 const userForm = ref({
@@ -104,13 +107,13 @@ const userForm = ref({
 // 用户 ID
 const userId = ref<number>(currentUser?.id || 0);
 
-// 上传 headers（带上鉴权 token）
-const uploadHeaders = ref({
-  satoken: localStorage.getItem('token') || '',
-});
+// 触发文件输入点击
+const triggerFileInput = () => {
+  fileInputRef.value?.click();
+};
 
-// 头像上传前验证
-const beforeAvatarUpload = (file: File) => {
+// 验证文件
+const validateFile = (file: File): boolean => {
   const isImage = file.type.startsWith('image/');
   if (!isImage) {
     ElMessage.error('只能上传图片文件');
@@ -124,15 +127,65 @@ const beforeAvatarUpload = (file: File) => {
   return true;
 };
 
-// 头像上传成功回调
-const handleAvatarSuccess = async (file: File) => {
+// 处理文件变更
+const handleFileChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+
+  if (!file) return;
+
+  if (!validateFile(file)) {
+    // 重置文件输入
+    if (fileInputRef.value) {
+      fileInputRef.value.value = '';
+    }
+    return;
+  }
+
   try {
-    const response = await uploadFile(file);
-    userForm.value.avatar = response.data.fileUrl;
-    ElMessage.success('头像上传成功');
-  } catch (error) {
+    console.log('开始上传文件:', file.name);
+
+    // 创建FormData
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // 获取token
+    const token = localStorage.getItem('satoken');
+
+    // 使用原生fetch API直接上传
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      headers: {
+        // 不要手动设置Content-Type，让浏览器自动处理
+        // 添加token进请求头
+        'satoken': token || ''
+      },
+      body: formData
+    });
+
+    console.log('上传状态:', response.status, response.statusText);
+
+    if (!response.ok) {
+      throw new Error(`上传失败: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    console.log('上传响应:', result);
+
+    if (result.code === 200) {
+      userForm.value.avatar = result.data.fileUrl;
+      ElMessage.success('头像上传成功');
+    } else {
+      throw new Error(result.message || '上传失败');
+    }
+  } catch (error: any) {
     console.error('头像上传失败:', error);
-    ElMessage.error('头像上传失败，请重试');
+    ElMessage.error(`头像上传失败: ${error.message || '未知错误'}`);
+  } finally {
+    // 重置文件输入，允许再次选择相同文件
+    if (fileInputRef.value) {
+      fileInputRef.value.value = '';
+    }
   }
 };
 
@@ -191,11 +244,15 @@ const submitUserInfo = async () => {
       }),
     };
 
+    console.log('提交用户数据:', submitData);
+
     // 调用 updateUser 更新用户信息和密码
-    await updateUser(userId.value, submitData);
+    const response = await updateUser(userId.value, submitData);
+    console.log('更新用户响应:', response);
 
     // 更新本地存储的用户信息
     userStore.setUserInfo({
+      ...currentUser,
       id: userId.value,
       username: userForm.value.username,
       avatar: userForm.value.avatar || '',
@@ -208,9 +265,9 @@ const submitUserInfo = async () => {
       userStore.clearUserInfo();
       router.push('/login');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('更新用户信息失败:', error);
-    ElMessage.error('更新失败，请稍后重试');
+    ElMessage.error(`更新失败: ${error.message || '请稍后重试'}`);
   }
 };
 
@@ -252,14 +309,14 @@ const resetForm = () => {
   margin-left: 90px;
 }
 
-.avatar-uploader .el-upload {
+.avatar-uploader {
   border-radius: 6px;
   cursor: pointer;
   position: relative;
   overflow: hidden;
 }
 
-.avatar-uploader .el-upload:hover {
+.avatar-uploader:hover {
   border-color: #409eff;
 }
 
@@ -271,6 +328,9 @@ const resetForm = () => {
   line-height: 120px;
   text-align: center;
   border: 2px dashed #dcdfe6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .avatar-wrapper {

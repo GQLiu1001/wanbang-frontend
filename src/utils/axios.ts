@@ -1,127 +1,45 @@
+// axios.ts
 import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { ElMessage } from 'element-plus';
 import router from '@/router';
-import MockAdapter from 'axios-mock-adapter';
 
-// Create Axios instance
-const instance: AxiosInstance = axios.create({
-    baseURL: 'http://localhost:80/api',
+// 创建Axios实例
+const instance = axios.create({
+    baseURL: '/api', // 使用相对路径，让Vite代理生效
     timeout: 10000,
     headers: { 'Content-Type': 'application/json' },
     withCredentials: true,
 });
 
-// Initialize Mock Adapter
-const mock = new MockAdapter(instance, { delayResponse: 500 });
-
-// Simulated user database (for demo purposes)
-const mockUsers = [
-    { username: 'admin', password: '123456', id: 1, phone: '13800138000', role_key: 'admin' },
-    { username: 'user', password: 'password', id: 2, phone: '13900139000', role_key: 'user' },
-];
-
-// Mock login endpoint
-mock.onPost('/auth/login').reply((config) => {
-    try {
-        const { username, password } = JSON.parse(config.data || '{}');
-
-        // Validate input
-        if (!username || !password) {
-            return [
-                400,
-                {
-                    code: 400,
-                    message: '用户名或密码不能为空',
-                    data: null,
-                },
-            ];
-        }
-
-        // Find user in mock database
-        const user = mockUsers.find(
-            (u) => u.username === username && u.password === password
-        );
-
-        if (user) {
-            const token = `mock-satoken-${user.id}-${Date.now()}`; // Dynamic token
-            return [
-                200,
-                {
-                    code: 200,
-                    message: '登录成功',
-                    data: {
-                        user: {
-                            id: user.id,
-                            username: user.username,
-                            avatar: '',
-                            phone: user.phone,
-                            role_key: user.role_key,
-                        },
-                    },
-                },
-                { 'satoken': token }, // Return token in headers
-            ];
-        }
-
-        return [
-            401,
-            {
-                code: 401,
-                message: '用户名或密码错误',
-                data: null,
-            },
-        ];
-    } catch (error) {
-        return [
-            500,
-            {
-                code: 500,
-                message: '服务器内部错误',
-                data: null,
-            },
-        ];
-    }
-});
-
-// Mock logout endpoint (unchanged for now, but could be tied to mockUsers)
-mock.onPost('/auth/logout').reply((config) => {
-    const token = config.headers?.['satoken'];
-    if (token && token.startsWith('mock-satoken-')) {
-        return [
-            200,
-            {
-                code: 200,
-                message: '退出成功',
-                data: null,
-            },
-        ];
-    }
-    return [
-        401,
-        {
-            code: 401,
-            message: 'token错误或未登录',
-            data: null,
-        },
-    ];
-});
-
-// Request interceptor (unchanged)
+// 请求拦截器
 instance.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        const token = localStorage.getItem('token');
+        // 从localStorage获取token
+        const token = localStorage.getItem('satoken');
         if (token) {
+            // 确保headers对象存在
+            if (!config.headers) {
+                config.headers = {};
+            }
+            // 添加token到请求头
             config.headers['satoken'] = token;
+            console.log('添加token到请求头:', token);
         }
         return config;
     },
     (error) => Promise.reject(error)
 );
 
-// Response interceptor (unchanged)
+// 响应拦截器
 instance.interceptors.response.use(
     (response: AxiosResponse) => {
         const { data, status } = response;
+        // 保存可能的token
+        const token = response.headers['satoken'];
+        if (token) {
+            localStorage.setItem('satoken', token);
+        }
+
         if (status === 200) {
             switch (data.code) {
                 case 200:
@@ -131,7 +49,7 @@ instance.interceptors.response.use(
                     return Promise.reject(new Error(data.message || '请求参数错误'));
                 case 401:
                     ElMessage.error(data.message || '未登录，请重新登录');
-                    localStorage.removeItem('token');
+                    localStorage.removeItem('satoken');
                     router.push('/login');
                     return Promise.reject(new Error(data.message || '未授权'));
                 case 403:
@@ -159,7 +77,7 @@ instance.interceptors.response.use(
                     break;
                 case 401:
                     ElMessage.error('未登录，请重新登录');
-                    localStorage.removeItem('token');
+                    localStorage.removeItem('satoken');
                     router.push('/login');
                     break;
                 case 403:
@@ -175,7 +93,7 @@ instance.interceptors.response.use(
                     ElMessage.error(`错误: ${response.status}`);
             }
         } else {
-            ElMessage.error('网络异常，请稍后重试');
+            ElMessage.error('网络异常，请检查后端服务是否启动');
         }
         return Promise.reject(error);
     }

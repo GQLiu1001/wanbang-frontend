@@ -108,62 +108,85 @@ import { loginService, registerService, resetPasswordService } from '@/api/auth'
 import type { LoginRequest, RegisterRequest, ResetPasswordRequest } from '@/types/api';
 import router from '@/router';
 import { ElMessage } from 'element-plus';
+
 // 表单状态
 const currentForm = ref<'login' | 'register' | 'forgot'>('login');
+
 // 登录表单数据
 const loginForm = ref<LoginRequest>({
   username: '',
   password: '',
 });
+
 // 注册表单数据
 const registerForm = ref<RegisterRequest>({
   username: '',
   password: '',
   phone: '',
 });
+
 // 重置密码表单数据
 const resetForm = ref<ResetPasswordRequest>({
   username: '',
   phone: '',
   newPassword: '',
 });
+
 // 使用 Pinia Store
 const userStore = useUserStore();
+
 // 处理登录
 const handleLogin = async () => {
   try {
+    // 基本验证
+    if (!loginForm.value.username) {
+      ElMessage.error('用户名不能为空');
+      return;
+    }
+    if (!loginForm.value.password) {
+      ElMessage.error('密码不能为空');
+      return;
+    }
+
+    // 发送登录请求
+    console.log('正在尝试登录...', loginForm.value);
     const response = await loginService(loginForm.value);
-    // 从 set-cookie 头解析 satoken
-    const setCookieHeader = response.headers['set-cookie'];
-    let token = 'satoken';
-    if (setCookieHeader && Array.isArray(setCookieHeader)) {
-      const cookie = setCookieHeader.find((c) => c.startsWith('satoken='));
-      if (cookie) {
-        token = cookie.split(';')[0].replace('satoken=', ''); // 提取 token 值
+    console.log('登录响应:', response);
+
+    // 根据API文档更新的响应处理
+    if (response.data.code === 200) {
+      // 从响应头获取token（如果有）
+      const token = response.headers['satoken'];
+      if (token) {
+        localStorage.setItem('satoken', token);
+        console.log('已保存token:', token);
       }
+
+      // 从响应体获取用户信息 - 根据API文档，直接在data中
+      const userData = response.data.data;
+      console.log('获取到的用户数据:', userData);
+
+      if (!userData) {
+        throw new Error('用户信息未返回');
+      }
+
+      // 保存到用户状态
+      userStore.setUserInfo({
+        id: userData.id,
+        username: userData.username,
+        avatar: userData.avatar || '',
+        phone: userData.phone,
+        role_key: userData.role_key,
+      });
+
+      ElMessage.success('登录成功');
+      router.push('/dashboard');
+    } else {
+      throw new Error(response.data.message || '登录失败');
     }
-    if (!token) {
-      throw new Error('未找到 satoken');
-    }
-    const user = response.data.data.user; // 注意这里是 data.data.user
-    if (!user) {
-      throw new Error('用户信息未返回');
-    }
-    localStorage.setItem('satoken', token); // 只存储 token 值
-    console.log('登录成功，token:', token);
-    console.log('用户信息:', user);
-    userStore.setUserInfo({
-      id: user.id,
-      username: user.username,
-      avatar: user.avatar,
-      phone: user.phone,
-      role_id: user.role_id,
-    });
-    ElMessage.success('登录成功');
-    router.push('/dashboard');
   } catch (error: any) {
     console.error('登录失败:', error);
-    const errorMsg = error.response?.data?.message || '登录失败，请检查用户名或密码';
+    const errorMsg = error.response?.data?.message || error.message || '登录失败，请检查用户名或密码';
     ElMessage.error(errorMsg);
   }
 };
@@ -185,13 +208,16 @@ const handleRegister = async () => {
       return;
     }
 
+    console.log('正在尝试注册...', registerForm.value);
     const response = await registerService(registerForm.value);
+    console.log('注册响应:', response);
+
     ElMessage.success('注册成功，请登录');
     currentForm.value = 'login';
     registerForm.value = { username: '', password: '', phone: '' };
   } catch (error: any) {
     console.error('注册失败:', error);
-    const errorMsg = error.response?.data?.message || '注册失败，请稍后重试';
+    const errorMsg = error.response?.data?.message || error.message || '注册失败，请稍后重试';
     ElMessage.error(errorMsg);
   }
 };
@@ -199,13 +225,29 @@ const handleRegister = async () => {
 // 处理重置密码
 const handleResetPassword = async () => {
   try {
-    await resetPasswordService(resetForm.value);
+    if (!resetForm.value.username) {
+      ElMessage.error('用户名是必填项');
+      return;
+    }
+    if (!resetForm.value.phone) {
+      ElMessage.error('手机号是必填项');
+      return;
+    }
+    if (!resetForm.value.newPassword || resetForm.value.newPassword.length < 6) {
+      ElMessage.error('新密码长度需至少6位');
+      return;
+    }
+
+    console.log('正在尝试重置密码...', resetForm.value);
+    const response = await resetPasswordService(resetForm.value);
+    console.log('重置密码响应:', response);
+
     ElMessage.success('密码重置成功，请登录');
     currentForm.value = 'login';
     resetForm.value = { username: '', phone: '', newPassword: '' };
   } catch (error: any) {
     console.error('重置密码失败:', error);
-    const errorMsg = error.response?.data?.message || '重置密码失败，请稍后重试';
+    const errorMsg = error.response?.data?.message || error.message || '重置密码失败，请稍后重试';
     ElMessage.error(errorMsg);
   }
 };
