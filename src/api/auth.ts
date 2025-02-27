@@ -18,6 +18,6 @@ export const resetPasswordService = (resetData: ResetPasswordRequest) => {
 };
 
 // 登出函数也很简单，不需要手动设置 token
-export const logout = async () => {
+export const logout = () => {
     return axios.post('/auth/logout');
 };
