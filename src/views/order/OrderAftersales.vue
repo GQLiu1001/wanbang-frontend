@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { getOrders } from '@/api/order';
 import { aftersalesPostService } from '@/api/aftersales';
 import type { Order, Aftersale, OrderQueryParams } from '@/types/api';
 
-// Mocked fallback data（与 Order 类型一致）
+// Store order records and pagination state
+const orderRecords = ref<Order[]>([]);
+const total = ref(0); // Total records
+const page = ref(1); // Current page
+const size = ref(10); // Page size
+const searchDateRange = ref<[Date, Date] | []>([]);
+const searchPhone = ref<string>('');
+
+// Mocked fallback data (aligned with Order type)
 const mockRecord: Order = {
   order_no: 'ORD123456',
   item_id: 1,
@@ -23,14 +31,24 @@ const mockRecord: Order = {
   aftersale_status: null,
 };
 
-// Store order records and search state
-const orderRecords = ref<Order[]>([]);
-const filteredRecords = ref<Order[]>([]);
-const searchDateRange = ref<[Date, Date] | []>([]);
-const searchPhone = ref<string>(''); // 新增手机号搜索状态
+// Generate a single mock record
+const generateMockRecord = (): Order[] => {
+  return [{
+    ...mockRecord,
+    order_no: 'ORD000001',
+    item_id: 1,
+    customer_phone: '13800138000',
+    order_create_time: new Date(2025, 1, 1).toISOString().slice(0, 19).replace('T', ' '),
+    order_update_time: new Date(2025, 1, 1).toISOString().slice(0, 19).replace('T', ' '),
+    model_number: 'MODEL-001',
+    quantity: 50,
+    total_amount: 1500.00,
+  }];
+};
 
 // Dialog control for aftersale
 const aftersaleDialogVisible = ref(false);
+const currentAftersaleOrder = ref<Order | null>(null);
 const aftersaleForm = ref<Aftersale>({
   order_no: '',
   aftersale_type: null,
@@ -80,35 +98,53 @@ const pickerOptions = {
   },
 };
 
-// Fetch order records from API with fallback to mock data
+// Fetch order records from API with pagination
 const fetchOrderRecords = async () => {
   try {
-    const params: OrderQueryParams = {};
+    const params: OrderQueryParams = {
+      page: page.value,
+      size: size.value,
+    };
+
     if (searchDateRange.value.length === 2) {
       const [startDate, endDate] = searchDateRange.value;
       params.start_time = new Date(startDate).toISOString().slice(0, 19).replace('T', ' ');
       params.end_time = new Date(endDate).toISOString().slice(0, 19).replace('T', ' ');
     }
-    if (searchPhone.value.trim()) { // 新增手机号搜索参数
+
+    if (searchPhone.value.trim()) {
       params.customer_phone = searchPhone.value.trim();
     }
 
     const response = await getOrders(params);
     const data = response.data;
-    const records = data.data?.items && data.data.items.length > 0 ? data.data.items : [mockRecord];
-    orderRecords.value = records;
-    filteredRecords.value = records;
+
+    if (data.code === 200 && data.data?.items) {
+      orderRecords.value = data.data.items;
+      total.value = data.data.total || 0;
+    } else {
+      orderRecords.value = generateMockRecord();
+      total.value = 1; // Only one mock record
+      ElMessage.warning('数据格式异常，已显示模拟记录');
+    }
   } catch (error) {
     console.error('Failed to fetch order records:', error);
-    orderRecords.value = [mockRecord];
-    filteredRecords.value = [mockRecord];
-    ElMessage.warning('无法获取后端数据，已显示默认记录');
+    orderRecords.value = generateMockRecord();
+    total.value = 1;
+    ElMessage.warning('无法获取后端数据，已显示模拟记录');
   }
 };
 
-// Filter records by date range and phone
-const filterByDateRange = () => {
-  fetchOrderRecords(); // 直接调用 API 重新获取数据
+// Pagination handlers
+const handlePageChange = (newPage: number) => {
+  page.value = newPage;
+  fetchOrderRecords();
+};
+
+const handleSizeChange = (newSize: number) => {
+  size.value = newSize;
+  page.value = 1; // Reset to first page
+  fetchOrderRecords();
 };
 
 // Load data on mount
@@ -118,24 +154,34 @@ onMounted(() => {
 
 // Handle aftersale
 const handleAftersale = (row: Order) => {
+  currentAftersaleOrder.value = row;
   aftersaleForm.value = {
     order_no: row.order_no || '',
-    aftersale_type: null,
-    aftersale_status: null,
+    aftersale_type: row.aftersale_type || null,
+    aftersale_status: row.aftersale_status || null,
     quantity_change: 0,
     amount_change: 0,
     resolution_result: '',
-    aftersale_operator: 0,
+    aftersale_operator: row.operator_id || 0,
   };
   aftersaleDialogVisible.value = true;
 };
 
 const saveAftersale = async () => {
   try {
+    if (!aftersaleForm.value.aftersale_type) {
+      ElMessage.error('请选择售后类型');
+      return;
+    }
+    if (!aftersaleForm.value.aftersale_status) {
+      ElMessage.error('请选择售后状态');
+      return;
+    }
+
     const submitData: Aftersale = {
       order_no: aftersaleForm.value.order_no,
-      aftersale_type: aftersaleForm.value.aftersale_type!,
-      aftersale_status: aftersaleForm.value.aftersale_status!,
+      aftersale_type: aftersaleForm.value.aftersale_type,
+      aftersale_status: aftersaleForm.value.aftersale_status,
       quantity_change: aftersaleForm.value.quantity_change,
       amount_change: aftersaleForm.value.amount_change,
       resolution_result: aftersaleForm.value.resolution_result || undefined,
@@ -144,13 +190,13 @@ const saveAftersale = async () => {
 
     const response = await aftersalesPostService(submitData);
     const data = response.data;
+
     if (data.code === 201) {
       ElMessage.success('售后记录创建成功');
       aftersaleDialogVisible.value = false;
       await fetchOrderRecords();
-      filterByDateRange();
     } else {
-      throw new Error('响应状态异常');
+      throw new Error(data.message || '响应状态异常');
     }
   } catch (error) {
     console.error('Failed to create aftersale record:', error);
@@ -158,10 +204,11 @@ const saveAftersale = async () => {
   }
 };
 
-// Clear filter
+// Clear filter and refresh
 const clearFilter = () => {
   searchDateRange.value = [];
-  searchPhone.value = ''; // 清空手机号搜索
+  searchPhone.value = '';
+  page.value = 1; // Reset to first page
   fetchOrderRecords();
 };
 
@@ -192,11 +239,11 @@ const aftersaleStatusMap = {
               start-placeholder="开始日期"
               end-placeholder="结束日期"
               :picker-options="pickerOptions"
-              @change="filterByDateRange"
+              @change="fetchOrderRecords"
           />
         </el-form-item>
       </el-col>
-      <el-col :span="8"> <!-- 新增手机号搜索栏 -->
+      <el-col :span="8">
         <el-form-item label="按手机号筛选">
           <el-input
               v-model="searchPhone"
@@ -212,8 +259,8 @@ const aftersaleStatusMap = {
     </el-row>
 
     <el-table
-        v-if="filteredRecords.length > 0"
-        :data="filteredRecords"
+        v-if="orderRecords.length > 0"
+        :data="orderRecords"
         style="width: 100%"
         border
     >
@@ -222,16 +269,12 @@ const aftersaleStatusMap = {
       <el-table-column prop="model_number" label="产品型号" width="150" />
       <el-table-column label="购买数量" width="120">
         <template #default="{ row }">
-          <span>
-            {{ row.aftersale_type ? row.adjusted_quantity || row.quantity : row.quantity }}
-          </span>
+          {{ row.adjusted_quantity !== null ? row.adjusted_quantity : row.quantity }}
         </template>
       </el-table-column>
       <el-table-column label="订单金额" width="150">
         <template #default="{ row }">
-          <span>
-            {{ row.aftersale_type ? row.adjusted_amount || row.total_amount : row.total_amount }}
-          </span>
+          {{ row.adjusted_amount !== null ? row.adjusted_amount : row.total_amount }}
         </template>
       </el-table-column>
       <el-table-column prop="customer_phone" label="客户手机号" width="150" />
@@ -264,6 +307,20 @@ const aftersaleStatusMap = {
       </el-table-column>
     </el-table>
     <div v-else class="no-data">暂无订单记录</div>
+
+    <!-- Pagination -->
+    <div class="pagination-container">
+      <el-pagination
+          v-if="orderRecords.length > 0"
+          :current-page="page"
+          :page-size="size"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+      />
+    </div>
 
     <!-- Aftersale Dialog -->
     <el-dialog v-model="aftersaleDialogVisible" title="创建售后记录" width="30%">
@@ -330,5 +387,12 @@ const aftersaleStatusMap = {
 
 .search-section {
   margin-bottom: 20px;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  padding-bottom: 20px;
 }
 </style>

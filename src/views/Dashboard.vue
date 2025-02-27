@@ -218,25 +218,25 @@ onUnmounted(() => {
   padding: 0;
   height: 100vh;
   width: 100vw;
-  overflow: hidden;
+
 }
 
 .common-layout {
   height: 100%;
   width: 100%;
-  overflow: hidden;
+
 }
 
 .layout-container {
   height: 100%;
   width: 100%;
-  overflow: hidden;
+
 }
 
 .aside {
   background-color: #545c64;
   transition: width 0.3s;
-  overflow: hidden;
+
   border-radius: 18px 0 0 18px;
 }
 
@@ -278,7 +278,7 @@ onUnmounted(() => {
   align-items: center;
   height: 60px;
   padding: 0 20px;
-  overflow: hidden;
+
   border-radius: 0 18px 0 0;
 }
 
@@ -317,7 +317,7 @@ onUnmounted(() => {
 .main {
   background-color: #cac6c6;
   padding: 20px;
-  overflow: auto;
+  overflow: auto; /* 保留滚动 */
   height: calc(100vh - 76px);
   border-radius: 0 0 18px;
 }
@@ -326,6 +326,8 @@ onUnmounted(() => {
   background-color: #fff;
   border-radius: 18px;
   height: 85vh;
+  overflow-y: auto; /* 添加垂直滚动 */
+  overflow-x: auto; /* 添加垂直滚动 */
 }
 
 .aside {

@@ -121,7 +121,6 @@ onMounted(() => {
         <el-table-column prop="id" label="用户id" />
         <el-table-column prop="username" label="用户名" />
         <el-table-column prop="phone" label="手机号" />
-        <el-table-column prop="role_key" label="角色标识" />
         <el-table-column prop="description" label="角色描述" />
         <!-- 使用计算属性控制整列显示 -->
         <el-table-column label="操作" v-if="hasDeletePermission">
@@ -165,11 +164,14 @@ onMounted(() => {
 }
 
 .user-list-container {
-  width: 900px;
+  width: 100%;
+  align-content: center;
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 20px;
+  overflow-y: auto;
+  overflow-x: auto;
 }
 
 h1 {
@@ -200,5 +202,6 @@ hr {
 
 .el-table .el-table__cell {
   padding: 10px; /* Adjust padding for consistency */
+  height: 100%;
 }
 </style>
