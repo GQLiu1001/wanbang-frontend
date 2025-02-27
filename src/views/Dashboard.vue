@@ -40,7 +40,6 @@ const handleLogout = () => {
         try {
           // 使用提取出的函数
           await logout();
-
           // 清理用户信息
           userStore.clearUserInfo();
           localStorage.clear();

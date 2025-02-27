@@ -17,12 +17,12 @@ instance.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
         // 从 localStorage 获取存储的 satoken
         const saToken = localStorage.getItem('satoken');
-
+        console.log('从 localStorage 读取到 satoken:', saToken)
         // 如果存在 satoken，则添加到请求头
         if (saToken) {
             config.headers.satoken = saToken;
         }
-
+        console.log('发送请求:', config)
         // 记录请求信息用于调试
         console.log('发送请求:', {
             url: config.url,

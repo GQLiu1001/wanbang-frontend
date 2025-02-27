@@ -289,11 +289,13 @@ const resetForm = () => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  max-width: 500px;
+  margin: 0 auto;
 }
 
 .user-form {
   margin-top: 20px;
-  width: 500px;
+  width: 100%;
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -305,11 +307,11 @@ const resetForm = () => {
   justify-content: center;
   width: 100%;
   margin-bottom: 20px;
-  margin-left: 90px;
 }
 
 .avatar-uploader {
   border-radius: 6px;
+  width: 120px;
   cursor: pointer;
   position: relative;
   overflow: hidden;
@@ -334,7 +336,9 @@ const resetForm = () => {
 
 .avatar-wrapper {
   position: relative;
-  display: inline-block;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .avatar {
@@ -343,16 +347,16 @@ const resetForm = () => {
   display: block;
   object-fit: cover;
   border-radius: 6px;
-  cursor: pointer; /* 添加鼠标指针样式以表明可点击 */
-  transition: opacity 0.3s; /* 添加过渡效果 */
+  cursor: pointer;
+  transition: transform 0.3s, opacity 0.3s;
 }
 
-/* 鼠标悬停时的效果 */
 .avatar:hover {
   opacity: 0.8;
+  transform: scale(1.1); /* 放大效果 */
+  transform-origin: center; /* 从中心放大 */
 }
 
-/* 添加悬停文本提示 */
 .avatar-hover-text {
   position: absolute;
   top: 50%;
@@ -364,7 +368,7 @@ const resetForm = () => {
   border-radius: 4px;
   opacity: 0;
   transition: opacity 0.3s;
-  pointer-events: none; /* 确保不会影响鼠标事件 */
+  pointer-events: none;
 }
 
 .avatar:hover + .avatar-hover-text {

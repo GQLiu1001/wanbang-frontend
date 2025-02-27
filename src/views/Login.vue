@@ -161,7 +161,7 @@ const handleLogin = async () => {
     const cookieMatch = document.cookie.match(/satoken=([^;]+)/);
     let saToken = cookieMatch ? cookieMatch[1] : '';
     console.log('从 cookie 中提取的 satoken:', saToken);
-
+    localStorage.setItem('satoken', saToken)
     // ... satoken 处理逻辑 ...
 
     // 从响应体获取用户信息
