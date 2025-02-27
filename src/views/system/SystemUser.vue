@@ -4,10 +4,10 @@
     <hr />
     <el-form :model="userForm" label-width="100px" class="user-form">
       <el-form-item label="" class="avatar-item">
-        <!-- 使用原生的文件上传组件，避免Element Plus的封装问题 -->
         <div class="avatar-uploader">
           <div v-if="userForm.avatar" class="avatar-wrapper">
-            <img :src="userForm.avatar" class="avatar" />
+            <img :src="userForm.avatar" class="avatar" @click="triggerFileInput" />
+            <div class="avatar-hover-text">点击修改</div>
             <el-button
                 type="danger"
                 size="small"
@@ -30,7 +30,6 @@
         </div>
       </el-form-item>
 
-      <!-- 其他表单项保持不变 -->
       <el-form-item label="用户名" required>
         <el-input v-model="userForm.username" placeholder="请输入用户名" />
       </el-form-item>
@@ -344,6 +343,32 @@ const resetForm = () => {
   display: block;
   object-fit: cover;
   border-radius: 6px;
+  cursor: pointer; /* 添加鼠标指针样式以表明可点击 */
+  transition: opacity 0.3s; /* 添加过渡效果 */
+}
+
+/* 鼠标悬停时的效果 */
+.avatar:hover {
+  opacity: 0.8;
+}
+
+/* 添加悬停文本提示 */
+.avatar-hover-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none; /* 确保不会影响鼠标事件 */
+}
+
+.avatar:hover + .avatar-hover-text {
+  opacity: 1;
 }
 
 .remove-avatar-btn {

@@ -16,3 +16,8 @@ export const registerService = (registerData: RegisterRequest) => {
 export const resetPasswordService = (resetData: ResetPasswordRequest) => {
     return axios.post('/auth/reset-password', resetData);
 };
+
+// 登出函数也很简单，不需要手动设置 token
+export const logout = async () => {
+    return axios.post('/auth/logout');
+};

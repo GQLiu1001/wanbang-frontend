@@ -38,3 +38,4 @@ export const uploadFile = (file: File) => {
         },
     });
 };
+

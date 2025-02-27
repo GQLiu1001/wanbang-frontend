@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getUsers, deleteUser } from '@/api/user';
-import type {User, PaginationParams, UserList} from '@/types/api';
+import type { User, PaginationParams, UserList } from '@/types/api';
 import { useUserStore } from '@/stores/user';
 
 // Store user list and pagination state
@@ -13,13 +13,14 @@ const total = ref(0);
 
 // 获取当前用户信息
 const userStore = useUserStore();
-const currentUser = userStore.getUserInfo();
+const currentUser = ref(userStore.getUserInfo());
 
-// 判断当前用户是否有删除权限
-const hasDeletePermission = () => {
-  const currentUser = userStore.getUserInfo();
-  return currentUser?.role_key === 'admin';
-};
+// 使用计算属性来判断是否有删除权限
+const hasDeletePermission = computed(() => {
+  const user = userStore.getUserInfo();
+  console.log('权限检查 - 当前用户:', user);
+  return user?.role_key === 'admin';
+});
 
 // Fetch user list with pagination
 const fetchUserList = async () => {
@@ -45,7 +46,7 @@ const fetchUserList = async () => {
 
 // 删除用户
 const handleDelete = async (userId: number, username: string) => {
-  if (!hasDeletePermission()) {
+  if (!hasDeletePermission.value) {
     ElMessage.error('无权限执行删除操作');
     return;
   }
@@ -89,6 +90,14 @@ const handleSizeChange = (newSize: number) => {
 };
 
 onMounted(() => {
+  // 首先检查用户信息
+  currentUser.value = userStore.getUserInfo();
+  console.log('组件挂载 - 当前用户信息:', currentUser.value);
+
+  // 如果没有用户信息，可以在这里添加重新获取用户信息的逻辑
+  // 例如：重定向到登录页、刷新用户信息等
+
+  // 然后获取用户列表
   fetchUserList();
 });
 </script>
@@ -98,17 +107,24 @@ onMounted(() => {
     <h1>用户管理</h1>
     <hr>
 
+    <!-- 显示当前用户信息（调试用） -->
+    <div v-if="false" class="debug-info">
+      <p>当前用户: {{ currentUser?.username }}</p>
+      <p>角色: {{ currentUser?.role_key }}</p>
+      <p>是否有删除权限: {{ hasDeletePermission }}</p>
+    </div>
+
     <!-- 用户列表 -->
     <div class="user-list-container">
       <h2>所有用户</h2>
       <el-table :data="userList" style="width: 100%">
-        <!-- Remove fixed widths and let columns distribute evenly -->
         <el-table-column prop="id" label="用户id" />
         <el-table-column prop="username" label="用户名" />
         <el-table-column prop="phone" label="手机号" />
         <el-table-column prop="role_key" label="角色标识" />
         <el-table-column prop="description" label="角色描述" />
-        <el-table-column label="操作" v-if="hasDeletePermission()">
+        <!-- 使用计算属性控制整列显示 -->
+        <el-table-column label="操作" v-if="hasDeletePermission">
           <template #default="{ row }">
             <el-button
                 type="danger"
@@ -136,6 +152,7 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
 
 <style scoped>
 .page-container {

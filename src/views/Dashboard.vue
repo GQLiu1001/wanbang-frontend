@@ -5,6 +5,7 @@ import { ChromeFilled, Location, DocumentCopy, Box, Search, Upload, Monitor, Swi
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useUserStore } from "@/stores/user.ts";
 import instance from '@/utils/axios';
+import {logout} from "@/api/auth.ts";
 
 // 获取当前用户信息
 const userStore = useUserStore();
@@ -37,8 +38,9 @@ const handleLogout = () => {
   })
       .then(async () => {
         try {
-          // 调用后端登出接口，依赖拦截器设置 satoken
-          await instance.post('/auth/logout');
+          // 使用提取出的函数
+          await logout();
+
           // 清理用户信息
           userStore.clearUserInfo();
           localStorage.clear();
@@ -46,8 +48,13 @@ const handleLogout = () => {
           ElMessage.success('退出登录成功');
           router.push('/login');
         } catch (error) {
-          ElMessage.error('退出登录失败，请重试');
-          console.error(error);
+          console.error('登出错误详情:', error);
+          // 尽管请求失败，仍然清理本地数据
+          userStore.clearUserInfo();
+          localStorage.clear();
+          sessionStorage.clear();
+          ElMessage.info('已清除本地登录信息');
+          router.push('/login');
         }
       })
       .catch(() => {
@@ -181,7 +188,7 @@ onUnmounted(() => {
             <el-dropdown>
               <span class="user-info">
                 <el-avatar size="small" :src="userStore.getUserInfo().avatar" />
-                <span class="username">管理员</span>
+                <span class="username">{{userStore.getUserInfo().username}}</span>
               </span>
               <template #dropdown>
                 <el-dropdown-menu>

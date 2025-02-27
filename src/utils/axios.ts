@@ -11,24 +11,31 @@ const instance = axios.create({
     withCredentials: true,
 });
 
-// 请求拦截器
+
+// Axios 请求拦截器
 instance.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        // 从localStorage获取token
-        const token = localStorage.getItem('satoken');
-        if (token) {
-            // 确保headers对象存在
-            if (!config.headers) {
-                config.headers = {};
-            }
-            // 添加token到请求头
-            config.headers['satoken'] = token;
-            console.log('添加token到请求头:', token);
+        // 从 localStorage 获取存储的 satoken
+        const saToken = localStorage.getItem('satoken');
+
+        // 如果存在 satoken，则添加到请求头
+        if (saToken) {
+            config.headers.satoken = saToken;
         }
+
+        // 记录请求信息用于调试
+        console.log('发送请求:', {
+            url: config.url,
+            method: config.method,
+            headers: config.headers
+        });
+
         return config;
     },
     (error) => Promise.reject(error)
 );
+
+
 
 // 响应拦截器
 instance.interceptors.response.use(

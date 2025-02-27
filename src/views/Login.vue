@@ -153,16 +153,19 @@ const handleLogin = async () => {
     const response = await loginService(loginForm.value);
     console.log('登录响应:', response);
 
-    // 根据API文档更新的响应处理
-    if (response.data.code === 200) {
-      // 从响应头获取token（如果有）
-      const token = response.headers['satoken'];
-      if (token) {
-        localStorage.setItem('satoken', token);
-        console.log('已保存token:', token);
-      }
+    // 从响应头中获取 satoken
+    console.log('所有响应头:', response.headers);
+    console.log('当前 cookie:', document.cookie);
 
-      // 从响应体获取用户信息 - 根据API文档，直接在data中
+    // 从 cookie 中获取 satoken (如果存在)
+    const cookieMatch = document.cookie.match(/satoken=([^;]+)/);
+    let saToken = cookieMatch ? cookieMatch[1] : '';
+    console.log('从 cookie 中提取的 satoken:', saToken);
+
+    // ... satoken 处理逻辑 ...
+
+    // 从响应体获取用户信息
+    if (response.data.code === 200) {
       const userData = response.data.data;
       console.log('获取到的用户数据:', userData);
 
@@ -170,21 +173,33 @@ const handleLogin = async () => {
         throw new Error('用户信息未返回');
       }
 
+      // 检查用户数据中是否包含角色信息
+      if (!userData.role_key) {
+        console.warn('警告: 用户数据中缺少 role_key 字段');
+      }
+
       // 保存到用户状态
       userStore.setUserInfo({
         id: userData.id,
         username: userData.username,
         avatar: userData.avatar || '',
-        phone: userData.phone,
-        role_key: userData.role_key,
+        phone: userData.phone || '',
+        role_key: userData.roleKey || '', // 确保 role_key 被保存
       });
+
+      // 验证保存是否成功
+      const savedUser = userStore.getUserInfo();
+      console.log('保存到 store 后的用户信息:', savedUser);
+
+      // 验证 localStorage 是否保存成功
+      console.log('localStorage 中的用户信息:', localStorage.getItem('userInfo'));
 
       ElMessage.success('登录成功');
       router.push('/dashboard');
     } else {
       throw new Error(response.data.message || '登录失败');
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('登录失败:', error);
     const errorMsg = error.response?.data?.message || error.message || '登录失败，请检查用户名或密码';
     ElMessage.error(errorMsg);

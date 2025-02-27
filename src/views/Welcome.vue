@@ -1,27 +1,36 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick, watch, onBeforeUnmount } from 'vue';
 import * as echarts from 'echarts';
 import { ElMessage } from 'element-plus';
 import { fetchTotalSalesAmount, fetchTodaySalesAmount, fetchSalesTrend, fetchTopProducts } from '@/api/order';
+import { useRoute } from 'vue-router';
 
-// 数据定义（初始为空，等待 API 填充）
+// 获取当前路由
+const route = useRoute();
+
+// 数据定义
 const salesData = ref<{ dates: string[]; salesValues: number[]; amounts: number[] }>({ dates: [], salesValues: [], amounts: [] });
 const topProducts = ref<{ model_number: string; sales: number; }[]>([]);
 const totalSalesAmount = ref<number>(0);
 const todaySalesAmount = ref<number>(0);
 
-// 引用图表 DOM 元素
+// 引用图表和表格容器DOM元素
 const salesChartRef = ref<HTMLElement | null>(null);
+const productCardRef = ref<HTMLElement | null>(null);
+const tableContainerRef = ref<HTMLElement | null>(null);
+let salesChart: echarts.ECharts | null = null;
+
+// 计算表格高度
+const tableHeight = ref(300);
 
 // 获取销售趋势数据
 const fetchSalesData = async () => {
   try {
     const response = await fetchSalesTrend();
-    salesData.value = response.data; // 确保从 response.data 中获取数据
+    salesData.value = response.data;
   } catch (error) {
     console.error('获取销售趋势数据失败：', error);
     ElMessage.warning('无法获取销量趋势数据，已显示默认数据');
-    // 默认数据作为备用
     salesData.value = {
       dates: ['2024-09', '2024-10', '2024-11', '2024-12', '2025-01'],
       salesValues: [100, 90, 120, 133, 566],
@@ -38,7 +47,6 @@ const fetchTopProductsData = async () => {
   } catch (error) {
     console.error('获取最火爆卖品数据失败：', error);
     ElMessage.warning('无法获取最火爆卖品数据，已显示默认数据');
-    // 默认数据作为备用
     topProducts.value = [
       { model_number: 'MODEL-A', sales: 500 },
       { model_number: 'MODEL-B', sales: 450 },
@@ -53,37 +61,27 @@ const fetchTopProductsData = async () => {
 const initSalesChart = () => {
   if (!salesChartRef.value) return;
 
-  const chart = echarts.init(salesChartRef.value);
+  if (salesChart) {
+    salesChart.dispose();
+  }
+
+  salesChart = echarts.init(salesChartRef.value);
   const option = {
-    title: {
-      text: '销售趋势',
-      left: 'center',
-    },
-    tooltip: {
-      trigger: 'axis',
-    },
-    legend: {
-      data: ['销量', '销售金额'],
-      top: '5%',
-    },
+    title: { text: '销售趋势', left: 'center' },
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['销量', '销售金额'], top: '5%' },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
     xAxis: {
       type: 'category',
       data: salesData.value.dates,
+      axisLabel: {
+        interval: 0,
+        rotate: salesData.value.dates.length > 5 ? 30 : 0
+      }
     },
     yAxis: [
-      {
-        type: 'value',
-        name: '销量',
-        position: 'left',
-      },
-      {
-        type: 'value',
-        name: '销售金额（元）',
-        position: 'right',
-        axisLabel: {
-          formatter: '{value}',
-        },
-      },
+      { type: 'value', name: '销量', position: 'left' },
+      { type: 'value', name: '销售金额（元）', position: 'right', axisLabel: { formatter: '{value}' } }
     ],
     series: [
       {
@@ -91,38 +89,62 @@ const initSalesChart = () => {
         type: 'line',
         data: salesData.value.salesValues,
         smooth: true,
-        yAxisIndex: 0, // 使用左边的 Y 轴
-        lineStyle: {
-          color: '#409EFF',
-        },
-        itemStyle: {
-          color: '#409EFF',
-        },
+        yAxisIndex: 0,
+        lineStyle: { color: '#409EFF' },
+        itemStyle: { color: '#409EFF' }
       },
       {
         name: '销售金额',
         type: 'line',
         data: salesData.value.amounts,
         smooth: true,
-        yAxisIndex: 1, // 使用右边的 Y 轴
-        lineStyle: {
-          color: '#67C23A',
-        },
-        itemStyle: {
-          color: '#67C23A',
-        },
-      },
-    ],
+        yAxisIndex: 1,
+        lineStyle: { color: '#67C23A' },
+        itemStyle: { color: '#67C23A' }
+      }
+    ]
   };
-  chart.setOption(option);
-
-  // 窗口大小变化时调整图表大小
-  window.addEventListener('resize', () => chart.resize());
+  salesChart.setOption(option);
 };
 
-// 组件挂载时加载数据并初始化图表
-onMounted(async () => {
-  // 获取所有数据
+// 更新表格高度
+const updateTableHeight = () => {
+  if (!productCardRef.value || !tableContainerRef.value) return;
+
+  const cardPadding = 20;
+  const titleHeight = 40;
+
+  const cardHeight = productCardRef.value.clientHeight;
+  const availableHeight = cardHeight - titleHeight - cardPadding;
+
+  tableHeight.value = Math.max(availableHeight, 200);
+  tableContainerRef.value.style.height = `${tableHeight.value}px`;
+};
+
+// 处理窗口大小变化和缩放
+const handleResize = () => {
+  setTimeout(() => {
+    if (salesChart) {
+      salesChart.resize();
+    }
+    updateTableHeight();
+  }, 200);
+};
+
+// 监听路由变化
+watch(
+    () => route.path,
+    (newPath) => {
+      if (newPath.includes(route.name as string)) {
+        nextTick(() => {
+          handleResize();
+        });
+      }
+    }
+);
+
+// 加载所有数据
+const loadAllData = async () => {
   try {
     const totalResponse = await fetchTotalSalesAmount();
     totalSalesAmount.value = totalResponse.data.total_amount;
@@ -143,9 +165,41 @@ onMounted(async () => {
 
   await fetchSalesData();
   await fetchTopProductsData();
+
+  await nextTick();
   initSalesChart();
+  updateTableHeight();
+};
+
+onMounted(async () => {
+  await loadAllData();
+
+  window.addEventListener('resize', handleResize);
+
+  const observer = new MutationObserver(handleResize);
+  observer.observe(document.body, {
+    attributes: true,
+    childList: true,
+    subtree: true
+  });
+
+  (window as any).__resizeObserver = observer;
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize);
+  if ((window as any).__resizeObserver) {
+    (window as any).__resizeObserver.disconnect();
+    (window as any).__resizeObserver = null;
+  }
+
+  if (salesChart) {
+    salesChart.dispose();
+    salesChart = null;
+  }
 });
 </script>
+
 
 <template>
   <div class="welcome-container">
@@ -171,58 +225,116 @@ onMounted(async () => {
     <!-- 图表部分 -->
     <el-row :gutter="20" class="charts-section">
       <!-- 销售趋势图 -->
-      <el-col :span="16">
-        <el-card shadow="hover" class="rounded-card">
+      <el-col :span="18">
+        <el-card shadow="hover" class="rounded-card chart-card">
           <section ref="salesChartRef" class="sales-chart"></section>
         </el-card>
       </el-col>
 
       <!-- 最火爆卖品表格 -->
-      <el-col :span="8">
-        <el-card shadow="hover" class="rounded-card">
-          <h3>最火爆卖品</h3>
-          <el-table :data="topProducts" style="width: 100%" border height="350">
-            <el-table-column prop="model_number" label="产品型号" />
-            <el-table-column prop="sales" label="销量" />
-          </el-table>
+      <el-col :span="6">
+        <el-card shadow="hover" ref="productCardRef" class="rounded-card product-card">
+          <div class="card-header">
+            <h3>最火爆卖品</h3>
+          </div>
+          <div ref="tableContainerRef" class="table-container">
+            <el-table
+                :data="topProducts"
+                border
+                style="width: 100%"
+                size="small"
+                :height="tableHeight"
+                :header-cell-style="{
+                background: '#f5f7fa',
+                color: '#606266',
+                fontWeight: 'bold'
+              }">
+              <el-table-column
+                  prop="model_number"
+                  label="产品型号"
+                  min-width="70"
+                  show-overflow-tooltip />
+              <el-table-column
+                  prop="sales"
+                  label="销量"
+                  min-width="50"
+                  width="70"
+                  align="center" />
+            </el-table>
+          </div>
         </el-card>
       </el-col>
     </el-row>
   </div>
 </template>
 
+
 <style scoped>
 .welcome-container {
   padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .stats-section {
-  margin-top: 20px;
+  margin-top: 0;
   margin-bottom: 20px;
 }
 
 .charts-section {
-  margin-top: 20px;
+  display: flex;
+  height: calc(100% - 150px);
+  min-height: 500px;
+}
+
+.el-row {
+  width: 100%;
+}
+
+.chart-card,
+.product-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.card-header {
+  flex: 0 0 auto;
+  padding-bottom: 10px;
+}
+
+.table-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  min-height: 200px;
 }
 
 .sales-chart {
   width: 100%;
-  height: 400px;
+  height: 100%;
+  min-height: 400px;
+  flex: 1;
 }
 
 h1 {
   text-align: center;
   color: #409EFF;
+  margin-top: 0;
+  margin-bottom: 15px;
 }
 
 h3 {
   text-align: center;
-  margin-bottom: 10px;
+  margin: 0 0 10px 0;
 }
 
 /* 统计卡片样式 */
 .stats-card {
   text-align: center;
+  height: 100px;
 }
 
 .stats-value {
@@ -236,4 +348,23 @@ h3 {
   border-radius: 15px;
   overflow: hidden;
 }
+
+/* 确保在小屏幕上表格不会太小 */
+@media screen and (max-width: 1400px) {
+  .charts-section {
+    min-height: 450px;
+  }
+}
+
+/* 适应不同缩放级别 */
+@media screen and (min-resolution: 120dpi) {
+  .table-container {
+    overflow: auto;
+  }
+
+  .product-card {
+    overflow: visible;
+  }
+}
+
 </style>
