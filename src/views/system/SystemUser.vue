@@ -259,11 +259,6 @@ const submitUserInfo = async () => {
     });
 
     ElMessage.success('用户信息更新成功');
-    if (userForm.value.newPassword) {
-      ElMessage.success('密码已更新，请重新登录');
-      userStore.clearUserInfo();
-      router.push('/login');
-    }
   } catch (error: any) {
     console.error('更新用户信息失败:', error);
     ElMessage.error(`更新失败: ${error.message || '请稍后重试'}`);
