@@ -1,5 +1,5 @@
 import axios from "@/utils/axios.ts";
-import type {InventoryLog, LogQueryParams} from "@/types/api.ts";
+import type {InventoryLog, LogQueryParams} from "@/types/interfaces.ts";
 
 // 查询入库记录
 export const getInventoryLogs = (params: LogQueryParams) => {

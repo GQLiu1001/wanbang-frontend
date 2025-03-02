@@ -1,6 +1,6 @@
 // 用户登录相关服务
 import axios from "@/utils/axios.ts";
-import type {ChangePasswordRequest, LoginRequest, RegisterRequest, ResetPasswordRequest, User} from "@/types/api.ts"
+import type {ChangePasswordRequest, LoginRequest, RegisterRequest, ResetPasswordRequest, User} from "@/types/interfaces.ts"
 
 // 用户登录 - 注意这里的路径不要包含/api，因为baseURL已经包含了
 export const loginService = (loginData: LoginRequest) => {

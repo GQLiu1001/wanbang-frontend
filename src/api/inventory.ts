@@ -1,5 +1,5 @@
 import axios from "@/utils/axios.ts";
-import type {InventoryItem, InventoryQueryParams} from "@/types/api.ts";
+import type {InventoryItem, InventoryQueryParams} from "@/types/interfaces.ts";
 
 // 查询库存列表
 export const getInventoryItems = (params: InventoryQueryParams) => {

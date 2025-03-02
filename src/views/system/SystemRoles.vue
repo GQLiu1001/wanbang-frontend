@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getUsers, deleteUser } from '@/api/user';
-import type { User, PaginationParams, UserList } from '@/types/api';
+import type { User, PaginationParams, UserList } from '@/types/interfaces.ts';
 import { useUserStore } from '@/stores/user';
 
 // Store user list and pagination state

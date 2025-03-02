@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getInventoryLogs, updateInventoryLog, deleteInventoryLog } from '@/api/inventoryLog';
-import type { InventoryLog, LogQueryParams } from '@/types/api';
+import type { InventoryLog, LogQueryParams } from '@/types/interfaces.ts';
 
 // Mocked fallback data（与 inventory_log 表字段一致）
 const mockRecord: InventoryLog = {

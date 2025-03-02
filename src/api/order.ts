@@ -1,6 +1,6 @@
 // api/order.ts
 import axios from "@/utils/axios.ts";
-import type { Order, OrderQueryParams } from "@/types/api.ts";
+import type { Order, OrderQueryParams } from "@/types/interfaces.ts";
 
 // 创建订单
 export const postOrder = (orderModel: Omit<Order, 'order_no' | 'order_create_time' | 'order_update_time' | 'adjusted_quantity' | 'adjusted_amount' | 'aftersale_type' | 'aftersale_status'>) => {

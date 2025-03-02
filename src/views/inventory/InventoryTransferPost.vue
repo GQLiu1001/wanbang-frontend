@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { postInventoryLog } from '@/api/inventoryLog';
-import type { InventoryLog } from '@/types/api';
+import type { InventoryLog } from '@/types/interfaces.ts';
 
 // Form data（与 InventoryLog 类型一致）
 const formData = ref<Partial<InventoryLog>>({

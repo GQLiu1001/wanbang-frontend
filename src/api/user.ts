@@ -1,6 +1,6 @@
 // user.ts
 import axios from "@/utils/axios.ts";
-import type { User, PaginationParams } from "@/types/api.ts";
+import type { User, PaginationParams } from "@/types/interfaces.ts";
 
 // 定义 UpdateUserRequest 类型，包含 oldPassword
 interface UpdateUserRequest extends Omit<User, 'id' | 'role_id' | 'description'> {

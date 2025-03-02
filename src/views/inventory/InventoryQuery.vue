@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getInventoryItems, updateInventoryItem, deleteInventoryItem } from '@/api/inventory';
-import type { InventoryItem, InventoryQueryParams } from '@/types/api';
+import type { InventoryItem, InventoryQueryParams } from '@/types/interfaces.ts';
 
 // Mocked fallback data（与 InventoryItem 类型一致）
 const mockResult: InventoryItem = {

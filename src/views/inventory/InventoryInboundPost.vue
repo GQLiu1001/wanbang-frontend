@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { postInventoryItem } from '@/api/inventory';
-import type { InventoryItem } from '@/types/api';
+import type { InventoryItem } from '@/types/interfaces.ts';
 
 // Form data（与 InventoryItem 类型一致）
 const formData = ref<Partial<InventoryItem> & { box_count?: number }>({

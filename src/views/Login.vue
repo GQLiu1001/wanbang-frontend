@@ -105,7 +105,7 @@
 import { ref } from 'vue';
 import { useUserStore } from '@/stores/user';
 import { loginService, registerService, resetPasswordService } from '@/api/auth';
-import type { LoginRequest, RegisterRequest, ResetPasswordRequest } from '@/types/api';
+import type { LoginRequest, RegisterRequest, ResetPasswordRequest } from '@/types/interfaces.ts';
 import router from '@/router';
 import { ElMessage } from 'element-plus';
 

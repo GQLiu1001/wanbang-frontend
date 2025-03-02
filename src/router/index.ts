@@ -22,6 +22,17 @@ const router = createRouter({
       component: () => import('@/views/Dashboard.vue'),
       redirect: '/dashboard/welcome', // 调整 redirect 路径与父路径一致
       children: [
+        {
+          path: 'order/aftersales/:id?', // Use relative path without leading /
+          name: 'order-aftersales',
+          component: () => import('@/views/order/OrderAftersales.vue'),
+          props: true // This is important to pass route params as props
+        },
+        {
+          path: 'order/list',
+          name: 'order-list',
+          component: () => import('@/views/order/OrderList.vue')
+        },
         // 欢迎页面
         {
           path: 'welcome', // 相对路径，去掉前导斜杠
@@ -76,11 +87,7 @@ const router = createRouter({
           name: 'order-list',
           component: () => import('@/views/order/OrderList.vue'),
         },
-        {
-          path: 'order/aftersales',
-          name: 'order-aftersales',
-          component: () => import('@/views/order/OrderAftersales.vue'),
-        },
+
         // 系统管理
         {
           path: 'system/user',

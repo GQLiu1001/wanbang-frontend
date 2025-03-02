@@ -126,3 +126,64 @@ export interface OrderQueryParams extends PaginationParams {
     end_time?: string;
     customer_phone?: string;
 }
+
+// 订单项模型（新增）
+export interface OrderItem {
+    id?: number;
+    order_id?: number;
+    item_id: number;
+    model_number?: string;
+    specification?: string;
+    manufacturer?: string;
+    quantity: number;
+    price_per_piece: number;
+    subtotal: number;
+    adjusted_quantity?: number | null;
+}
+
+// 完整订单模型（新增）
+export interface FullOrder {
+    id?: number;
+    order_no?: string;
+    customer_phone: string;
+    operator_id: number;
+    operator_name?: string;
+    total_amount: number;
+    adjusted_amount?: number;
+    order_remark?: string;
+    order_create_time?: string;
+    order_update_time?: string;
+    aftersale_status?: number;
+    aftersale_type?: number;
+    items?: OrderItem[];
+    items_count?: number;
+}
+
+// 售后项目模型（新增）
+export interface AftersaleItem {
+    order_item_id: number;
+    quantity_change: number;
+    amount_change: number;
+}
+
+// 完整售后模型（新增）
+export interface FullAftersale {
+    id?: number;
+    order_no: string;
+    order_id?: number;
+    aftersale_type: number; // 1=买多退货退款, 2=买少补货补款
+    aftersale_status: number; // 1=新建, 2=已解决
+    items: AftersaleItem[];
+    resolution_result?: string;
+    aftersale_operator: number;
+    create_time?: string;
+}
+
+// 售后查询参数（新增）
+export interface AftersaleQueryParams extends PaginationParams {
+    order_no?: string;
+    aftersale_type?: number;
+    aftersale_status?: number;
+    start_time?: string;
+    end_time?: string;
+}
