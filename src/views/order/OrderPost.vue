@@ -130,7 +130,7 @@ const submitOrder = async () => {
     // 调用API
     const response = await postOrder(submitData);
     const data = response.data;
-    if (data.code === 201) {
+    if (data.code === 200) {
       ElMessage.success('订单创建成功');
       resetForm();
     } else {

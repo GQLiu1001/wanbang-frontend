@@ -149,10 +149,6 @@ onUnmounted(() => {
               <el-icon><Van /></el-icon>
               <template #title>订单管理</template>
             </el-menu-item>
-            <el-menu-item index="/dashboard/order/aftersales">
-              <el-icon><Service /></el-icon>
-              <template #title>售后管理</template>
-            </el-menu-item>
           </el-sub-menu>
 
           <!-- 系统管理 -->

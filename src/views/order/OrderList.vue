@@ -631,12 +631,10 @@ onMounted(() => {
             border
             style="width: 100%"
         >
-          <el-table-column prop="id" label="ID" width="60" />
-          <el-table-column prop="model_number" label="产品型号" width="120" />
-          <el-table-column prop="specification" label="规格" width="120" />
-          <el-table-column prop="manufacturer" label="制造商" width="120" />
-          <el-table-column prop="quantity" label="原始数量" width="90" />
-          <el-table-column prop="adjusted_quantity" label="调整数量" width="90">
+          <el-table-column prop="id" label="ID" width="80" />
+          <el-table-column prop="model_number" label="产品型号" width="180" />
+          <el-table-column prop="quantity" label="原始数量" width="200" />
+          <el-table-column prop="adjusted_quantity" label="调整数量" width="180">
             <template #default="{ row }">
               {{ row.adjusted_quantity !== null && row.adjusted_quantity !== undefined ? row.adjusted_quantity : '-' }}
             </template>
@@ -646,7 +644,7 @@ onMounted(() => {
               {{ row.price_per_piece.toFixed(2) }} 元
             </template>
           </el-table-column>
-          <el-table-column prop="subtotal" label="小计" width="120">
+          <el-table-column prop="subtotal" label="小计" width="150">
             <template #default="{ row }">
               {{ row.subtotal.toFixed(2) }} 元
             </template>

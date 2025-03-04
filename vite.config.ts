@@ -15,7 +15,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3000', // 使用 IPv4 地址而不是 localhost
+        target: 'http://localhost:8080', // 使用 IPv4 地址而不是 localhost
         changeOrigin: true
       }
     }

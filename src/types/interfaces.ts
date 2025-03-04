@@ -17,7 +17,18 @@ export interface ResetPasswordRequest {
     phone: string;
     newPassword: string;
 }
+// interfaces.ts 中的售后相关类型定义
 
+// 售后查询参数
+export interface AftersaleQueryParams {
+    page?: number;
+    size?: number;
+    order_id?: number;
+    aftersale_type?: number;
+    aftersale_status?: number;
+    start_time?: string;
+    end_time?: string;
+}
 // 修改密码请求参数
 export interface ChangePasswordRequest {
     oldPassword: string;

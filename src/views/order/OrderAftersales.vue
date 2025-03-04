@@ -1,4 +1,3 @@
-<!--售后表单-->
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -37,23 +36,32 @@ interface Order {
   items: OrderItem[];  // 订单包含的多个商品项
 }
 
-// 售后项目类型
-interface AftersaleItem {
-  order_item_id: number;
-  quantity_change: number;
-  amount_change: number;
-}
-
-// 售后记录类型 - 与API文档一致
+// 售后记录类型 - 根据SQL表结构修改
 interface Aftersale {
   id?: number;
   order_id: number;
+  order_item_id: number;
   aftersale_type: number | null;
   aftersale_status: number | null;
-  items: AftersaleItem[];
+  quantity_change: number;
+  amount_change: number;
   resolution_result: string;
   aftersale_operator: number;
   create_time?: string;
+}
+
+// 售后表单类型
+interface AftersalePostRequest {
+  order_id: number;
+  aftersale_type: number;
+  aftersale_status: number;
+  items: [{
+    order_item_id: number;
+    quantity_change: number;
+    amount_change: number;
+  }];
+  resolution_result: string;
+  aftersale_operator: number;
 }
 
 // 路由相关
@@ -68,36 +76,32 @@ const noOrderFound = ref(false);
 // 当前售后订单
 const order = ref<Order | null>(null);
 
-// 售后表单
-const aftersaleForm = ref<Aftersale>({
+// 售后表单 - 修改为直接对应SQL表结构
+const aftersaleForm = ref<AftersalePostRequest>({
   order_id: 0,
-  aftersale_type: null,
+  aftersale_type: 0,
   aftersale_status: 1, // 默认为"新建"状态
+  items: [{
+    order_item_id: 0,
+    quantity_change: 0,
+    amount_change: 0
+  }],
   resolution_result: '',
-  aftersale_operator: userStore.getUserInfo()?.id || 0,
-  items: []
+  aftersale_operator: userStore.getUserInfo()?.id || 0
 });
-
-// 售后项目
-const aftersaleItems = ref<{
-  id: number;
-  model_number: string;
-  checked: boolean;
-  quantity: number;
-  currentQuantity: number;
-  quantity_change: number;
-  price_per_piece: number;
-  amount_change: number;
-}[]>([]);
 
 // 历史售后记录
 const aftersaleLogs = ref<Aftersale[]>([]);
 const aftersaleLogsLoading = ref(false);
 
+// 选中的订单项
+const selectedOrderItem = ref<OrderItem | null>(null);
+
 // 获取订单详情
 const fetchOrderDetail = async (orderId: number) => {
   loading.value = true;
   noOrderFound.value = false;
+  selectedOrderItem.value = null;
 
   try {
     const response = await getOrderDetail(orderId);
@@ -108,24 +112,16 @@ const fetchOrderDetail = async (orderId: number) => {
       // 初始化售后表单
       aftersaleForm.value = {
         order_id: orderId,
-        aftersale_type: null,
+        aftersale_type: 0,
         aftersale_status: 1, // 默认为"新建"状态
+        items: [{
+          order_item_id: 0,
+          quantity_change: 0,
+          amount_change: 0
+        }],
         resolution_result: '',
-        aftersale_operator: userStore.getUserInfo()?.id || 0,
-        items: []
+        aftersale_operator: userStore.getUserInfo()?.id || 0
       };
-
-      // 初始化售后项目
-      aftersaleItems.value = order.value.items.map(item => ({
-        id: item.id,
-        model_number: item.model_number,
-        checked: false,
-        quantity: item.quantity,
-        currentQuantity: item.adjusted_quantity !== null ? item.adjusted_quantity : item.quantity,
-        quantity_change: 0,
-        price_per_piece: item.price_per_piece,
-        amount_change: 0
-      }));
 
       // 获取历史售后记录
       await fetchAftersaleLogs(orderId);
@@ -148,8 +144,14 @@ const fetchAftersaleLogs = async (orderId: number) => {
   try {
     const response = await getOrderAftersaleLogs(orderId);
     if (response.data.code === 200) {
-      aftersaleLogs.value = response.data.data || [];
-      console.log('售后记录:', aftersaleLogs.value);
+      // 确保数据是数组格式
+      if (response.data.data && !Array.isArray(response.data.data)) {
+        // 如果是单个对象，将其转换为数组
+        aftersaleLogs.value = [response.data.data];
+      } else {
+        aftersaleLogs.value = response.data.data || [];
+      }
+      console.log('售后记录数组:', aftersaleLogs.value);
     } else {
       console.error('获取售后记录失败:', response.data.message);
       aftersaleLogs.value = [];
@@ -164,38 +166,68 @@ const fetchAftersaleLogs = async (orderId: number) => {
 
 // 切换售后类型
 const handleAftersaleTypeChange = () => {
-  // 重置所有项目的数量变化和金额变化
-  aftersaleItems.value.forEach(item => {
-    item.checked = false;
-    item.quantity_change = 0;
-    item.amount_change = 0;
-  });
+  // 重置数量变化和金额变化
+  aftersaleForm.value.items = [{
+    order_item_id: 0,
+    quantity_change: 0,
+    amount_change: 0
+  }];
+  selectedOrderItem.value = null;
 };
 
-// 处理售后项目选择
-const handleItemCheckedChange = (index: number) => {
-  const item = aftersaleItems.value[index];
-  if (!item.checked) {
-    // 如果取消选中，重置数量变化和金额变化
-    item.quantity_change = 0;
-    item.amount_change = 0;
+// 处理订单项选择
+const handleItemSelected = (item: OrderItem) => {
+  selectedOrderItem.value = item;
+  // 重置数量变化和金额变化
+  aftersaleForm.value.items = [{
+    order_item_id: item.id,
+    quantity_change: 0,
+    amount_change: 0
+  }];
+};
+
+// 更新金额变化
+const updateAmountChange = () => {
+  if (!selectedOrderItem.value || !aftersaleForm.value.items.length) return;
+
+  const item = aftersaleForm.value.items[0];
+  item.amount_change = Number((item.quantity_change * selectedOrderItem.value.price_per_piece).toFixed(2));
+};
+
+// 格式化日期时间
+const formatDateTime = (dateTimeStr: string | undefined | null): string => {
+  if (!dateTimeStr) return '';
+
+  try {
+    const date = new Date(dateTimeStr);
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  } catch (e) {
+    console.error('日期格式化错误:', e);
+    return dateTimeStr; // 如果格式化失败，返回原始字符串
   }
 };
 
-// 更新售后项目的金额变化
-const updateAmountChange = (index: number) => {
-  const item = aftersaleItems.value[index];
-  if (item.checked) {
-    item.amount_change = Number((item.quantity_change * item.price_per_piece).toFixed(2));
-  }
+// 获取售后类型文本
+const getAftersaleTypeText = (type: number | null): string => {
+  if (type === 1) return '买多退货退款';
+  if (type === 2) return '买少补货补款';
+  return '';
 };
 
-// 计算总的金额变化
-const totalAmountChange = computed(() => {
-  return aftersaleItems.value
-      .filter(item => item.checked)
-      .reduce((sum, item) => sum + item.amount_change, 0);
-});
+// 获取售后状态文本
+const getAftersaleStatusText = (status: number | null): string => {
+  if (status === 1) return '新建';
+  if (status === 2) return '已解决';
+  return '';
+};
 
 // 提交售后申请
 const saveAftersale = async () => {
@@ -204,57 +236,53 @@ const saveAftersale = async () => {
     return;
   }
 
+  if (!aftersaleForm.value.items.length || !aftersaleForm.value.items[0].order_item_id) {
+    ElMessage.error('请选择商品项');
+    return;
+  }
+
   if (!aftersaleForm.value.aftersale_operator) {
     ElMessage.error('请输入售后处理人ID');
     return;
   }
 
-  // 检查是否有选中的项目
-  const selectedItems = aftersaleItems.value.filter(item => item.checked);
-  if (selectedItems.length === 0) {
-    ElMessage.error('请至少选择一个商品项');
+  if (!aftersaleForm.value.resolution_result.trim()) {
+    ElMessage.error('请输入处理结果说明');
     return;
   }
 
-  // 验证每个选中项目的数量变化
-  for (const item of selectedItems) {
-    if (item.quantity_change === 0) {
-      ElMessage.error(`${item.model_number} 的数量变化不能为0`);
-      return;
-    }
+  const item = aftersaleForm.value.items[0];
+  if (item.quantity_change === 0) {
+    ElMessage.error('数量变化不能为0');
+    return;
+  }
 
-    // 检查数量变化的正负与售后类型是否匹配
-    if (aftersaleForm.value.aftersale_type === 1 && item.quantity_change > 0) {
-      ElMessage.error(`买多退货退款类型下，${item.model_number} 的数量变化应为负数`);
-      return;
-    }
+  // 检查数量变化的正负与售后类型是否匹配
+  if (aftersaleForm.value.aftersale_type === 1 && item.quantity_change > 0) {
+    ElMessage.error('买多退货退款类型下，数量变化应为负数');
+    return;
+  }
 
-    if (aftersaleForm.value.aftersale_type === 2 && item.quantity_change < 0) {
-      ElMessage.error(`买少补货补款类型下，${item.model_number} 的数量变化应为正数`);
+  if (aftersaleForm.value.aftersale_type === 2 && item.quantity_change < 0) {
+    ElMessage.error('买少补货补款类型下，数量变化应为正数');
+    return;
+  }
+
+  // 检查商品当前库存是否足够退货
+  if (selectedOrderItem.value && aftersaleForm.value.aftersale_type === 1) {
+    const currentQuantity = selectedOrderItem.value.adjusted_quantity !== null
+        ? selectedOrderItem.value.adjusted_quantity
+        : selectedOrderItem.value.quantity;
+
+    if (Math.abs(item.quantity_change) > currentQuantity) {
+      ElMessage.error(`退货数量不能超过当前库存 ${currentQuantity}`);
       return;
     }
   }
 
-  // 构建售后项目数据
-  const aftersaleItemsData: AftersaleItem[] = selectedItems.map(item => ({
-    order_item_id: item.id,
-    quantity_change: item.quantity_change,
-    amount_change: item.amount_change
-  }));
-
-  // 构建完整的售后数据
-  const aftersaleData = {
-    order_id: aftersaleForm.value.order_id,
-    aftersale_type: aftersaleForm.value.aftersale_type,
-    aftersale_status: aftersaleForm.value.aftersale_status,
-    resolution_result: aftersaleForm.value.resolution_result,
-    aftersale_operator: aftersaleForm.value.aftersale_operator,
-    items: aftersaleItemsData
-  };
-
   try {
     loading.value = true;
-    const response = await createAftersale(aftersaleData);
+    const response = await createAftersale(aftersaleForm.value);
 
     if (response.data.code === 200 || response.data.code === 201) {
       ElMessage.success('售后申请提交成功');
@@ -263,13 +291,19 @@ const saveAftersale = async () => {
       await fetchOrderDetail(aftersaleForm.value.order_id);
 
       // 重置表单
-      aftersaleForm.value.aftersale_type = null;
-      aftersaleForm.value.resolution_result = '';
-      aftersaleItems.value.forEach(item => {
-        item.checked = false;
-        item.quantity_change = 0;
-        item.amount_change = 0;
-      });
+      aftersaleForm.value = {
+        order_id: aftersaleForm.value.order_id,
+        aftersale_type: 0,
+        aftersale_status: 1,
+        items: [{
+          order_item_id: 0,
+          quantity_change: 0,
+          amount_change: 0
+        }],
+        resolution_result: '',
+        aftersale_operator: userStore.getUserInfo()?.id || 0
+      };
+      selectedOrderItem.value = null;
     } else {
       ElMessage.error(response.data.message || '售后申请提交失败');
     }
@@ -396,14 +430,16 @@ onMounted(() => {
                 <div class="info-item">
                   <span class="label">售后状态:</span>
                   <span class="value">
-                    <el-tag :type="order.aftersale_status ? (order.aftersale_status === 1 ? 'warning' : 'success') : 'info'">
-                      {{ order.aftersale_status ? aftersaleStatusMap[order.aftersale_status as keyof typeof aftersaleStatusMap] : '无' }}
+                    <el-tag v-if="order.aftersale_status === 1 || order.aftersale_status === 2"
+                            :type="order.aftersale_status === 1 ? 'warning' : 'success'">
+                      {{ getAftersaleStatusText(order.aftersale_status) }}
                     </el-tag>
+                    <span v-else>无</span>
                   </span>
                 </div>
                 <div class="info-item">
                   <span class="label">创建时间:</span>
-                  <span class="value">{{ order.order_create_time }}</span>
+                  <span class="value">{{ formatDateTime(order.order_create_time) }}</span>
                 </div>
               </div>
             </div>
@@ -466,13 +502,14 @@ onMounted(() => {
           <div class="aftersale-items">
             <div class="section-title">选择需要售后的商品</div>
 
-            <el-table :data="aftersaleItems" border style="width: 100%">
+            <el-table :data="order.items" border style="width: 100%">
               <el-table-column type="selection" width="55">
-                <template #default="{ row, $index }">
-                  <el-checkbox
-                      v-model="row.checked"
-                      @change="handleItemCheckedChange($index)"
-                  />
+                <template #default="{ row }">
+                  <el-radio
+                      v-model="aftersaleForm.items[0].order_item_id"
+                      :label="row.id"
+                      @change="handleItemSelected(row)"
+                  >&nbsp;</el-radio>
                 </template>
               </el-table-column>
               <el-table-column prop="model_number" label="产品型号" width="120" />
@@ -483,18 +520,7 @@ onMounted(() => {
               </el-table-column>
               <el-table-column label="当前数量" width="90">
                 <template #default="{ row }">
-                  {{ row.currentQuantity }}
-                </template>
-              </el-table-column>
-              <el-table-column label="数量变化" width="180">
-                <template #default="{ row, $index }">
-                  <el-input
-                      v-model.number="row.quantity_change"
-                      type="number"
-                      placeholder="正数补货/负数退货"
-                      :disabled="!row.checked"
-                      @input="updateAmountChange($index)"
-                  />
+                  {{ row.adjusted_quantity !== null ? row.adjusted_quantity : row.quantity }}
                 </template>
               </el-table-column>
               <el-table-column label="单价" width="90">
@@ -502,27 +528,42 @@ onMounted(() => {
                   {{ row.price_per_piece.toFixed(2) }} 元
                 </template>
               </el-table-column>
-              <el-table-column label="金额变化" width="120">
+              <el-table-column label="小计" width="120">
                 <template #default="{ row }">
-                  <span :class="{'positive': row.amount_change > 0, 'negative': row.amount_change < 0}">
-                    {{ row.amount_change.toFixed(2) }} 元
-                  </span>
-                </template>
-              </el-table-column>
-              <el-table-column label="说明">
-                <template #default="{ row }">
-                  <span v-if="row.quantity_change > 0">补货 {{ row.quantity_change }} 件</span>
-                  <span v-else-if="row.quantity_change < 0">退货 {{ -row.quantity_change }} 件</span>
-                  <span v-else>-</span>
+                  {{ row.subtotal.toFixed(2) }} 元
                 </template>
               </el-table-column>
             </el-table>
 
-            <div class="total-amount-change">
-              <span class="label">总金额变化:</span>
-              <span class="value" :class="{'positive': totalAmountChange > 0, 'negative': totalAmountChange < 0}">
-                {{ totalAmountChange.toFixed(2) }} 元
-              </span>
+            <div class="quantity-change-section" v-if="selectedOrderItem">
+              <el-form :model="aftersaleForm" label-width="120px" class="mt-4">
+                <el-form-item label="数量变化" required>
+                  <el-input
+                      v-model.number="aftersaleForm.items[0].quantity_change"
+                      type="number"
+                      placeholder="正数补货/负数退货"
+                      @input="updateAmountChange"
+                  />
+                  <div class="hint mt-2">
+                    <span v-if="aftersaleForm.aftersale_type === 1">请输入负数表示退货数量</span>
+                    <span v-else-if="aftersaleForm.aftersale_type === 2">请输入正数表示补货数量</span>
+                    <span v-else>请先选择售后类型</span>
+                  </div>
+                </el-form-item>
+                <el-form-item label="金额变化">
+                  <el-input
+                      v-model.number="aftersaleForm.items[0].amount_change"
+                      type="number"
+                      :disabled="true"
+                  />
+                  <div class="hint mt-2">
+                    <span :class="{'positive': aftersaleForm.items[0]?.amount_change > 0, 'negative': aftersaleForm.items[0]?.amount_change < 0}">
+                      {{ aftersaleForm.items[0]?.amount_change > 0 ? '补款' : aftersaleForm.items[0]?.amount_change < 0 ? '退款' : '' }}
+                      {{ Math.abs(aftersaleForm.items[0]?.amount_change || 0).toFixed(2) }} 元
+                    </span>
+                  </div>
+                </el-form-item>
+              </el-form>
             </div>
 
             <div class="submit-section">
@@ -536,21 +577,40 @@ onMounted(() => {
 
             <el-table :data="aftersaleLogs" v-loading="aftersaleLogsLoading" border style="width: 100%">
               <el-table-column prop="id" label="记录ID" width="80" />
+              <el-table-column prop="order_item_id" label="订单项ID" width="100" />
               <el-table-column label="售后类型" width="120">
                 <template #default="{ row }">
-                  <el-tag :type="row.aftersale_type === 1 ? 'danger' : 'success'">
-                    {{ row.aftersale_type === 1 ? '退货退款' : '补货补款' }}
+                  <el-tag v-if="row.aftersale_type === 1 || row.aftersale_type === 2"
+                          :type="row.aftersale_type === 1 ? 'danger' : 'success'">
+                    {{ getAftersaleTypeText(row.aftersale_type) }}
                   </el-tag>
+                  <span v-else>-</span>
                 </template>
               </el-table-column>
               <el-table-column label="售后状态" width="100">
                 <template #default="{ row }">
-                  <el-tag :type="row.aftersale_status === 1 ? 'warning' : 'success'">
-                    {{ row.aftersale_status === 1 ? '新建' : '已解决' }}
+                  <el-tag v-if="row.aftersale_status === 1 || row.aftersale_status === 2"
+                          :type="row.aftersale_status === 1 ? 'warning' : 'success'">
+                    {{ getAftersaleStatusText(row.aftersale_status) }}
                   </el-tag>
+                  <span v-else>-</span>
                 </template>
               </el-table-column>
-              <el-table-column label="处理结果" min-width="200">
+              <el-table-column label="数量变化" width="100">
+                <template #default="{ row }">
+                  <span :class="{'positive': row.quantity_change > 0, 'negative': row.quantity_change < 0}">
+                    {{ row.quantity_change }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="金额变化" width="120">
+                <template #default="{ row }">
+                  <span :class="{'positive': row.amount_change > 0, 'negative': row.amount_change < 0}">
+                    {{ row.amount_change.toFixed(2) }} 元
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="处理结果" min-width="150">
                 <template #default="{ row }">
                   {{ row.resolution_result }}
                 </template>
@@ -562,31 +622,17 @@ onMounted(() => {
               </el-table-column>
               <el-table-column label="创建时间" width="160">
                 <template #default="{ row }">
-                  {{ row.create_time }}
+                  {{ formatDateTime(row.create_time) }}
                 </template>
               </el-table-column>
 
-              <el-table-column label="操作" width="120">
+              <el-table-column label="操作" width="100">
                 <template #default="{ row }">
-                  <el-popover placement="top" :width="300" trigger="click">
-                    <template #reference>
-                      <el-button type="primary" size="small">查看详情</el-button>
-                    </template>
-                    <div class="log-details">
-                      <h4>售后项目详情</h4>
-                      <div v-for="(item, index) in row.items" :key="index" class="log-item">
-                        <div>订单项ID: {{ item.order_item_id }}</div>
-                        <div>数量变化: <span :class="{'positive': item.quantity_change > 0, 'negative': item.quantity_change < 0}">{{ item.quantity_change }}</span></div>
-                        <div>金额变化: <span :class="{'positive': item.amount_change > 0, 'negative': item.amount_change < 0}">{{ item.amount_change.toFixed(2) }} 元</span></div>
-                      </div>
-                    </div>
-                  </el-popover>
                   <!-- 仅在状态为新建时显示已解决按钮 -->
                   <el-button
                       v-if="row.aftersale_status === 1"
                       type="success"
                       size="small"
-                      style="margin-left: 10px"
                       @click="handleMarkAsResolved(row)"
                   >
                     标记已解决
@@ -605,7 +651,7 @@ onMounted(() => {
 
 <style scoped>
 .aftersale-page {
-  padding: 0 20px;
+  padding: 20px;
 }
 
 .page-header {
@@ -615,46 +661,25 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.page-header h1 {
-  margin: 0;
-}
-
 .skeleton-wrapper {
   padding: 20px;
 }
 
-.no-order-found {
-  padding: 50px 0;
-  text-align: center;
-}
-
 .aftersale-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-bottom: 40px;
+  margin-top: 20px;
 }
 
 .aftersale-order-info {
-  background-color: #f5f7fa;
+  margin-bottom: 30px;
+  border: 1px solid #ebeef5;
   border-radius: 4px;
-  overflow: hidden;
 }
 
 .info-header {
-  background-color: #e4e7ed;
-  padding: 10px 15px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 15px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #dcdfe6;
+  background-color: #f5f7fa;
+  padding: 12px 15px;
+  font-weight: bold;
+  border-bottom: 1px solid #ebeef5;
 }
 
 .info-content {
@@ -675,54 +700,60 @@ onMounted(() => {
   display: flex;
 }
 
-.info-item .label {
+.label {
   width: 100px;
   color: #606266;
-  font-weight: 500;
 }
 
-.info-item .value {
+.value {
   flex: 1;
   color: #303133;
 }
 
-.aftersale-basic-info {
-  padding: 15px;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-}
-
-.aftersale-items,
-.aftersale-history {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.total-amount-change {
-  margin-top: 15px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 10px 20px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
-}
-
-.total-amount-change .label {
-  font-weight: 600;
-  margin-right: 10px;
-}
-
-.total-amount-change .value {
+.section-title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: bold;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.aftersale-basic-info {
+  margin-bottom: 30px;
+}
+
+.aftersale-items {
+  margin-bottom: 30px;
+}
+
+.quantity-change-section {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
+}
+
+.hint {
+  font-size: 12px;
+  color: #909399;
+}
+
+.mt-2 {
+  margin-top: 8px;
+}
+
+.mt-4 {
+  margin-top: 16px;
 }
 
 .submit-section {
-  display: flex;
-  justify-content: center;
   margin-top: 20px;
+  text-align: right;
+}
+
+.aftersale-history {
+  margin-top: 30px;
 }
 
 .positive {
@@ -731,28 +762,5 @@ onMounted(() => {
 
 .negative {
   color: #f56c6c;
-}
-
-.log-details {
-  padding: 10px;
-}
-
-.log-details h4 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  padding-bottom: 5px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.log-item {
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px dashed #ebeef5;
-}
-
-.log-item:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
 }
 </style>
