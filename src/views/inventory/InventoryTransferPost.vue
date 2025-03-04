@@ -1,60 +1,47 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { postInventoryLog } from '@/api/inventoryLog';
-import type { InventoryLog } from '@/types/interfaces.ts';
+import { postTransferLog } from '@/api/inventoryLog';
+import type { TransferLogRequest } from '@/types/interfaces.ts';
 
-// Form data（与 InventoryLog 类型一致）
-const formData = ref<Partial<InventoryLog>>({
-  inventory_item_id: null,
-  operation_type: 3, // 固定为调库（3）
-  quantity_change: null,
-  operator_id: null,
-  source_warehouse: null,
-  target_warehouse: null,
+// Form data
+const formData = ref<TransferLogRequest>({
+  inventory_item_id: undefined,
+  operator_id: undefined,
+  source_warehouse: undefined,
+  target_warehouse: undefined,
   remark: '',
 });
 
-// Submit function（匹配接口 /api/inventory/logs）
+// Submit function
 const submitTransfer = async () => {
   try {
     // Validate required fields
-    const requiredFields: Record<keyof InventoryLog, string> = {
+    const requiredFields = {
       inventory_item_id: '库存项ID',
-      quantity_change: '数量变化',
       operator_id: '操作员ID',
       source_warehouse: '源仓库',
       target_warehouse: '目标仓库',
     };
+
     for (const [field, label] of Object.entries(requiredFields)) {
-      const value = formData.value[field as keyof InventoryLog];
-      if (value === null || value === undefined || value === '') {
+      const value = formData.value[field as keyof TransferLogRequest];
+      if (value === undefined || value === null || value === '') {
         ElMessage.error(`请填写${label}`);
         return;
       }
     }
 
-    // Validate quantity_change is positive
-    if ((formData.value.quantity_change ?? 0) <= 0) {
-      ElMessage.error('数量变化必须为正数');
+    // Validate warehouses are different
+    if (formData.value.source_warehouse === formData.value.target_warehouse) {
+      ElMessage.error('源仓库和目标仓库不能相同');
       return;
     }
 
-    // Prepare data for API（确保类型正确）
-    const submitData = {
-      inventory_item_id: Number(formData.value.inventory_item_id),
-      operation_type: formData.value.operation_type, // 固定为 3
-      quantity_change: Number(formData.value.quantity_change),
-      operator_id: Number(formData.value.operator_id),
-      source_warehouse: Number(formData.value.source_warehouse),
-      target_warehouse: Number(formData.value.target_warehouse),
-      remark: formData.value.remark || undefined, // 可选字段，空字符串转为 undefined
-    };
-
     // API call
-    const response = await postInventoryLog(submitData);
+    const response = await postTransferLog(formData.value);
     const data = response.data;
-    if (data.code === 201) {
+    if (data.code === 200 || data.code === 201) {
       ElMessage.success('调库记录创建成功');
       resetForm();
     } else {
@@ -69,12 +56,10 @@ const submitTransfer = async () => {
 // Reset form function
 const resetForm = () => {
   formData.value = {
-    inventory_item_id: null,
-    operation_type: 3, // 固定为调库
-    quantity_change: null,
-    operator_id: null,
-    source_warehouse: null,
-    target_warehouse: null,
+    inventory_item_id: undefined,
+    operator_id: undefined,
+    source_warehouse: undefined,
+    target_warehouse: undefined,
     remark: '',
   };
 };
@@ -92,6 +77,7 @@ const resetForm = () => {
                 v-model.number="formData.inventory_item_id"
                 placeholder="请输入库存项ID"
                 type="number"
+                min="1"
             />
           </el-form-item>
         </el-col>
@@ -99,21 +85,12 @@ const resetForm = () => {
 
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="数量变化" required>
-            <el-input
-                v-model.number="formData.quantity_change"
-                placeholder="请输入数量变化（正数）"
-                type="number"
-                :min="1"
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
           <el-form-item label="操作员ID" required>
             <el-input
                 v-model.number="formData.operator_id"
                 placeholder="请输入操作员ID"
                 type="number"
+                min="1"
             />
           </el-form-item>
         </el-col>
@@ -126,17 +103,19 @@ const resetForm = () => {
                 v-model.number="formData.source_warehouse"
                 placeholder="请输入源仓库编号"
                 type="number"
+                min="1"
             />
           </el-form-item>
         </el-col>
         <el-col :span="12">
-            <el-form-item label="目标仓库" required>
-              <el-input
-                  v-model.number="formData.target_warehouse"
-                  placeholder="请输入目标仓库编号"
-                  type="number"
-              />
-            </el-form-item>
+          <el-form-item label="目标仓库" required>
+            <el-input
+                v-model.number="formData.target_warehouse"
+                placeholder="请输入目标仓库编号"
+                type="number"
+                min="1"
+            />
+          </el-form-item>
         </el-col>
       </el-row>
 

@@ -42,13 +42,13 @@ export interface InventoryItem {
 
 // 库存操作日志模型
 export interface InventoryLog {
-    id?: number; // 可选，因为新建时没有 id
+    id?: number;
     inventory_item_id: number;
-    operation_type: number; // 1=入库, 2=出库, 3=调拨
+    operation_type: number; // 1=入库 2=出库 3=调拨 4=冲正
     quantity_change: number;
     operator_id: number;
-    source_warehouse?: number;
-    target_warehouse?: number ;
+    source_warehouse: number | null;
+    target_warehouse: number | null;
     remark?: string;
     create_time?: string;
     update_time?: string;
@@ -113,11 +113,14 @@ export interface InventoryQueryParams extends PaginationParams {
     surface?: number;
 }
 
-// 日志查询参数
-export interface LogQueryParams extends PaginationParams {
+
+// 查询参数
+export interface LogQueryParams {
+    page?: number;
+    size?: number;
+    operation_type: number; // 1=入库 2=出库 3=调拨 4=冲正
     start_time?: string;
     end_time?: string;
-    operation_type?: number;
 }
 
 // 订单查询参数
@@ -186,4 +189,157 @@ export interface AftersaleQueryParams extends PaginationParams {
     aftersale_status?: number;
     start_time?: string;
     end_time?: string;
+}
+// interfaces.ts
+
+// 登录请求参数
+export interface LoginRequest {
+    username: string;
+    password: string;
+}
+
+// 注册请求参数
+export interface RegisterRequest {
+    username: string;
+    password: string;
+    phone: string;
+}
+
+// 重置密码请求参数
+export interface ResetPasswordRequest {
+    username: string;
+    phone: string;
+    newPassword: string;
+}
+
+// 用户信息修改请求
+export interface UpdateUserRequest {
+    avatar?: string;
+    username?: string;
+    phone?: string;
+    oldPassword?: string;
+    password?: string;
+}
+
+// 分页查询参数
+export interface PaginationParams {
+    page?: number;
+    size?: number;
+}
+
+// 库存查询参数
+export interface InventoryQueryParams extends PaginationParams {
+    category?: number;
+    surface?: number;
+}
+
+// 库存物品信息
+export interface InventoryItem {
+    id?: number;
+    model_number: string;
+    manufacturer: string;
+    specification: string;
+    surface: number;
+    category: number;
+    warehouse_num: number;
+    total_pieces: number;
+    price_per_piece: number;
+    pieces_per_box: number;
+    remark?: string;
+    create_time?: string;
+    update_time?: string;
+}
+
+// 库存日志查询参数
+export interface LogQueryParams extends PaginationParams {
+    operation_type: number;
+    start_time?: string;
+    end_time?: string;
+}
+
+// 入库请求参数
+export interface InboundLogRequest {
+    operator_id?: number;
+    model_number?: string;
+    manufacturer?: string;
+    specification?: string;
+    warehouse_num?: number;
+    category?: number;
+    surface?: number;
+    total_pieces?: number;
+    pieces_per_box?: number;
+    price_per_piece?: number;
+    remark?: string;
+}
+
+// 调库请求参数
+export interface TransferLogRequest {
+    inventory_item_id?: number;
+    operator_id?: number;
+    source_warehouse?: number;
+    target_warehouse?: number;
+    remark?: string;
+}
+
+// 库存日志修改请求
+export interface InventoryLogChangeRequest {
+    id: number;
+    inventory_item_id: number;
+    operator_id: number;
+    operation_type: number;
+    source_warehouse?: number | null;
+    target_warehouse?: number | null;
+    quantity_change: number;
+    remark?: string;
+}
+
+// 订单查询参数
+export interface OrderQueryParams extends PaginationParams {
+    start_time?: string;
+    end_time?: string;
+    customer_phone?: string;
+}
+
+// 订单创建请求
+export interface OrderPostRequest {
+    customer_phone: string;
+    operator_id: number;
+    order_remark?: string;
+    total_amount: number;
+    items: Array<{
+        model_number: string;
+        item_id: number;
+        quantity: number;
+        price_per_piece: number;
+        subtotal: number;
+        source_warehouse: number;
+    }>;
+}
+
+// 订单修改请求
+export interface OrderChangeRequest {
+    customer_phone?: string;
+    operator_id?: number;
+    order_remark?: string;
+}
+
+// 订单项修改请求
+export interface OrderItemChangeRequest {
+    quantity: number;
+    price_per_piece: number;
+    subtotal: number;
+}
+
+// 售后创建请求
+export interface AftersalePostRequest {
+    order_id: number;
+    aftersale_type: number;
+    aftersale_status: number;
+    items: Array<{
+        order_item_id: number;
+        quantity_change: number;
+        amount_change: number;
+    }>;
+    resolution_result?: string;
+    aftersale_operator: number;
 }

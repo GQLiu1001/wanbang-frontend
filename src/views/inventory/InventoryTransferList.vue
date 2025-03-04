@@ -4,20 +4,6 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { getInventoryLogs, updateInventoryLog, deleteInventoryLog } from '@/api/inventoryLog';
 import type { InventoryLog, LogQueryParams } from '@/types/interfaces.ts';
 
-// Mocked fallback data（与 InventoryLog 类型一致）
-const mockRecord: InventoryLog = {
-  id: 1,
-  inventory_item_id: 1,
-  operation_type: 3, // 固定为调库
-  quantity_change: 50, // 调拨数量为正数
-  operator_id: 1,
-  source_warehouse: 1,
-  target_warehouse: 2,
-  remark: '默认调库备注',
-  create_time: '2025-02-22 14:00:00',
-  update_time: '2025-02-22 14:00:00',
-};
-
 // Store transfer inventory records and search state
 const transferRecords = ref<InventoryLog[]>([]);
 const total = ref(0); // Total records
@@ -36,8 +22,6 @@ const editForm = ref<InventoryLog>({
   source_warehouse: null,
   target_warehouse: null,
   remark: '',
-  create_time: '',
-  update_time: '',
 });
 
 // Define picker options for el-date-picker
@@ -94,20 +78,19 @@ const fetchTransferRecords = async () => {
     }
 
     const response = await getInventoryLogs(params);
-    const data = response.data;
-    if (data.code === 200 && data.data?.items) {
-      transferRecords.value = data.data.items;
-      total.value = data.data.total || 0;
+    if (response.data && response.data.code === 200) {
+      transferRecords.value = response.data.data.items || [];
+      total.value = response.data.data.total || 0;
     } else {
-      transferRecords.value = [mockRecord];
-      total.value = 1;
-      ElMessage.warning('数据格式异常，已显示默认记录');
+      ElMessage.warning('获取数据失败：' + (response.data?.message || '未知错误'));
+      transferRecords.value = [];
+      total.value = 0;
     }
   } catch (error) {
     console.error('Failed to fetch transfer records:', error);
-    transferRecords.value = [mockRecord];
-    total.value = 1;
-    ElMessage.warning('无法获取后端数据，已显示默认记录');
+    ElMessage.error('获取调库记录失败，请检查网络连接或联系管理员');
+    transferRecords.value = [];
+    total.value = 0;
   }
 };
 
@@ -116,7 +99,7 @@ onMounted(() => {
   fetchTransferRecords();
 });
 
-// Edit record（匹配接口 /api/inventory/logs/{id}）
+// Edit record
 const handleEdit = (row: InventoryLog) => {
   editForm.value = { ...row };
   editDialogVisible.value = true;
@@ -125,35 +108,32 @@ const handleEdit = (row: InventoryLog) => {
 const saveEdit = async () => {
   try {
     // 确保 operation_type 固定为 3，且 quantity_change 为正数
-    editForm.value.operation_type = 3;
-    if (editForm.value.quantity_change < 0) {
-      editForm.value.quantity_change = Math.abs(editForm.value.quantity_change);
+    if (editForm.value.quantity_change <= 0) {
+      ElMessage.warning('调库数量必须大于0');
+      return;
     }
-    const updateData = {
+
+    await updateInventoryLog({
+      id: editForm.value.id!,
       inventory_item_id: editForm.value.inventory_item_id,
-      operation_type: editForm.value.operation_type,
+      operation_type: 3,
       quantity_change: editForm.value.quantity_change,
       operator_id: editForm.value.operator_id,
       source_warehouse: editForm.value.source_warehouse,
       target_warehouse: editForm.value.target_warehouse,
-      remark: editForm.value.remark,
-    };
-    const response = await updateInventoryLog(editForm.value.id!, updateData);
-    const data = response.data;
-    if (data.code === 200) {
-      ElMessage.success('编辑成功');
-      editDialogVisible.value = false;
-      await fetchTransferRecords();
-    } else {
-      throw new Error('响应状态异常');
-    }
+      remark: editForm.value.remark
+    }, 3); // 传递操作类型3
+
+    ElMessage.success('编辑成功');
+    editDialogVisible.value = false;
+    await fetchTransferRecords();
   } catch (error) {
     console.error('Failed to update transfer record:', error);
     ElMessage.error('编辑失败，请稍后重试');
   }
 };
 
-// Delete record（匹配接口 /api/inventory/logs/{id}）
+// Delete record
 const handleDelete = async (row: InventoryLog) => {
   try {
     await ElMessageBox.confirm('确定删除此调库记录吗？', '提示', {
@@ -161,18 +141,18 @@ const handleDelete = async (row: InventoryLog) => {
       cancelButtonText: '取消',
       type: 'warning',
     });
+
     const response = await deleteInventoryLog(row.id!);
-    const data = response.data;
-    if (data.code === 200) {
+    if (response.data && response.data.code === 200) {
       ElMessage.success('删除成功');
       await fetchTransferRecords();
     } else {
-      throw new Error('响应状态异常');
+      throw new Error(response.data?.message || '删除失败');
     }
   } catch (error) {
     if ((error as any).message !== 'cancel') {
       console.error('Failed to delete transfer record:', error);
-      ElMessage.error('删除失败，请稍后重试');
+      ElMessage.error('删除失败：' + ((error as Error).message || '未知错误'));
     }
   }
 };
@@ -240,12 +220,12 @@ const clearFilter = () => {
       <el-table-column prop="remark" label="操作备注" min-width="200" />
       <el-table-column prop="create_time" label="创建时间" width="180">
         <template #default="{ row }">
-          {{ new Date(row.create_time).toLocaleString() }}
+          {{ row.create_time ? new Date(row.create_time).toLocaleString() : '-' }}
         </template>
       </el-table-column>
       <el-table-column prop="update_time" label="更新时间" width="180">
         <template #default="{ row }">
-          {{ new Date(row.update_time).toLocaleString() }}
+          {{ row.update_time ? new Date(row.update_time).toLocaleString() : '-' }}
         </template>
       </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
@@ -260,7 +240,7 @@ const clearFilter = () => {
     <!-- Pagination -->
     <div class="pagination-container">
       <el-pagination
-          v-if="transferRecords.length > 0"
+          v-if="total > 0"
           :current-page="page"
           :page-size="size"
           :total="total"

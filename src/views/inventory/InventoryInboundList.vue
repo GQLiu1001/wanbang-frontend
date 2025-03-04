@@ -4,20 +4,6 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { getInventoryLogs, updateInventoryLog, deleteInventoryLog } from '@/api/inventoryLog';
 import type { InventoryLog, LogQueryParams } from '@/types/interfaces.ts';
 
-// Mocked fallback data（与 inventory_log 表字段一致）
-const mockRecord: InventoryLog = {
-  id: 1,
-  inventory_item_id: 1,
-  operation_type: 1, // 固定为入库
-  quantity_change: 100,
-  operator_id: 1,
-  source_warehouse: 1,
-  target_warehouse: null,
-  remark: '默认入库备注',
-  create_time: '2025-02-22 14:00:00',
-  update_time: '2025-02-22 14:00:00',
-};
-
 // Store inventory records and search state
 const inventoryRecords = ref<InventoryLog[]>([]);
 const filteredRecords = ref<InventoryLog[]>([]);
@@ -72,17 +58,17 @@ const fetchInventoryRecords = async () => {
       filteredRecords.value = data.data.items;
       total.value = data.data.total || 0;
     } else {
-      inventoryRecords.value = [mockRecord];
-      filteredRecords.value = [mockRecord];
-      total.value = 1;
-      ElMessage.warning('数据格式异常，已显示默认记录');
+      inventoryRecords.value = [];
+      filteredRecords.value = [];
+      total.value = 0;
+      ElMessage.warning('获取数据失败');
     }
   } catch (error) {
     console.error('Failed to fetch inventory records:', error);
-    inventoryRecords.value = [mockRecord];
-    filteredRecords.value = [mockRecord];
-    total.value = 1;
-    ElMessage.warning('无法获取后端数据，已显示默认记录');
+    inventoryRecords.value = [];
+    filteredRecords.value = [];
+    total.value = 0;
+    ElMessage.error('无法获取入库记录数据');
   }
 };
 
@@ -91,7 +77,7 @@ onMounted(() => {
   fetchInventoryRecords();
 });
 
-// Edit record（匹配接口 /api/inventory/logs/{id}）
+// Edit record
 const handleEdit = (row: InventoryLog) => {
   editForm.value = { ...row };
   editDialogVisible.value = true;
@@ -99,25 +85,28 @@ const handleEdit = (row: InventoryLog) => {
 
 const saveEdit = async () => {
   try {
-    // 确保 operation_type 固定为 1
-    editForm.value.operation_type = 1;
+    // 根据接口文档，使用正确的参数结构
     const updateData = {
+      id: editForm.value.id,
       inventory_item_id: editForm.value.inventory_item_id,
-      operation_type: editForm.value.operation_type,
-      quantity_change: editForm.value.quantity_change,
       operator_id: editForm.value.operator_id,
+      operation_type: 1, // 固定为入库
       source_warehouse: editForm.value.source_warehouse,
       target_warehouse: editForm.value.target_warehouse,
+      quantity_change: editForm.value.quantity_change,
       remark: editForm.value.remark,
     };
-    const response = await updateInventoryLog(editForm.value.id!, updateData);
+
+    // 根据接口文档，更新调用需要传operation_type作为查询参数
+    const response = await updateInventoryLog(updateData, 1);
+
     const data = response.data;
     if (data.code === 200) {
       ElMessage.success('编辑成功');
       editDialogVisible.value = false;
       await fetchInventoryRecords();
     } else {
-      throw new Error('响应状态异常');
+      throw new Error(data.message || '响应状态异常');
     }
   } catch (error) {
     console.error('Failed to update record:', error);
@@ -125,7 +114,7 @@ const saveEdit = async () => {
   }
 };
 
-// Delete record（匹配接口 /api/inventory/logs/{id}）
+// Delete record
 const handleDelete = async (row: InventoryLog) => {
   try {
     await ElMessageBox.confirm('确定删除此入库记录吗？', '提示', {
@@ -133,13 +122,14 @@ const handleDelete = async (row: InventoryLog) => {
       cancelButtonText: '取消',
       type: 'warning',
     });
+
     const response = await deleteInventoryLog(row.id!);
     const data = response.data;
     if (data.code === 200) {
       ElMessage.success('删除成功');
       await fetchInventoryRecords();
     } else {
-      throw new Error('响应状态异常');
+      throw new Error(data.message || '响应状态异常');
     }
   } catch (error) {
     if ((error as any).message !== 'cancel') {
@@ -213,12 +203,12 @@ const handleSizeChange = (newSize: number) => {
       <el-table-column prop="remark" label="操作备注" min-width="200" />
       <el-table-column prop="create_time" label="创建时间" width="180">
         <template #default="{ row }">
-          {{ new Date(row.create_time).toLocaleString() }}
+          {{ row.create_time ? new Date(row.create_time).toLocaleString() : '/' }}
         </template>
       </el-table-column>
       <el-table-column prop="update_time" label="更新时间" width="180">
         <template #default="{ row }">
-          {{ new Date(row.update_time).toLocaleString() }}
+          {{ row.update_time ? new Date(row.update_time).toLocaleString() : '/' }}
         </template>
       </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
@@ -258,9 +248,6 @@ const handleSizeChange = (newSize: number) => {
         </el-form-item>
         <el-form-item label="源仓库编码">
           <el-input v-model.number="editForm.source_warehouse" type="number" />
-        </el-form-item>
-        <el-form-item label="目标仓库编码">
-          <el-input v-model.number="editForm.target_warehouse" type="number" />
         </el-form-item>
         <el-form-item label="操作备注">
           <el-input v-model="editForm.remark" type="textarea" />

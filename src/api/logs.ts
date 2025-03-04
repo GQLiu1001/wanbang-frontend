@@ -1,7 +1,11 @@
-// inventoryLog.ts
-import axios from '@/utils/axios';
-import type { LogQueryParams, InventoryLogChangeRequest, TransferLogRequest, InboundLogRequest } from '@/types/interfaces';
-
+import axios from "@/utils/axios.ts";
+import type {
+    InboundLogRequest,
+    InventoryLogChangeRequest,
+    LogQueryParams,
+    TransferLogRequest
+} from "@/types/interfaces.ts";
+// logs.ts
 // 查询记录
 export const getInventoryLogs = (params: LogQueryParams) => {
     return axios.get('/logs', { params });

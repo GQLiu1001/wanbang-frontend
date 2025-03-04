@@ -1,35 +1,24 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, reactive } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getInventoryItems, updateInventoryItem, deleteInventoryItem } from '@/api/inventory';
 import type { InventoryItem, InventoryQueryParams } from '@/types/interfaces.ts';
+import { useUserStore } from '@/stores/user';
 
-// Mocked fallback data（与 InventoryItem 类型一致）
-const mockResult: InventoryItem = {
-  id: 0,
-  model_number: '默认型号',
-  manufacturer: '默认厂商',
-  specification: '默认规格',
-  surface: 1, // 1=抛光
-  category: 2, // 2=地砖
-  warehouse_num: 1,
-  total_pieces: 100,
-  price_per_piece: 50.00,
-  pieces_per_box: 10,
-  remark: '默认备注',
-  create_time: '2025-02-22 00:00:00',
-  update_time: '2025-02-22 00:00:00',
-};
+// 用户权限检查
+const userStore = useUserStore();
+const isAdmin = userStore.isAdmin();
 
-// Search parameters
-const category = ref<number | null>(null); // Product category
-const surface = ref<number | null>(null); // Surface treatment
-const searchResults = ref<InventoryItem[]>([]); // Store search results
-const total = ref(0); // Total records
-const page = ref(1); // Current page
-const size = ref(10); // Page size
+// 搜索参数
+const category = ref<number | null>(null); // 产品分类
+const surface = ref<number | null>(null); // 表面处理
+const searchResults = ref<InventoryItem[]>([]); // 存储搜索结果
+const total = ref(0); // 总记录数
+const page = ref(1); // 当前页码
+const size = ref(10); // 每页记录数
+const loading = ref(false); // 加载状态
 
-// Dialog control for editing
+// 编辑对话框控制
 const editDialogVisible = ref(false);
 const editForm = ref<InventoryItem>({
   id: 0,
@@ -47,7 +36,7 @@ const editForm = ref<InventoryItem>({
   update_time: '',
 });
 
-// Category and surface treatment options（与数据库枚举一致）
+// 分类和表面处理选项（与数据库枚举一致）
 const categoryOptions = [
   { label: '墙砖', value: 1 },
   { label: '地砖', value: 2 },
@@ -61,8 +50,43 @@ const surfaceOptions = [
   { label: '岩板', value: 6 },
 ];
 
-// Search function（匹配接口 /api/inventory/items）
+// 表单校验规则
+const formRules = reactive({
+  model_number: [
+    { required: true, message: '请输入产品型号', trigger: 'blur' },
+    { max: 50, message: '产品型号不能超过50个字符', trigger: 'blur' }
+  ],
+  manufacturer: [
+    { required: true, message: '请输入制造厂商', trigger: 'blur' },
+    { max: 50, message: '制造厂商不能超过50个字符', trigger: 'blur' }
+  ],
+  specification: [
+    { required: true, message: '请输入规格', trigger: 'blur' },
+    { pattern: /^[0-9]+x[0-9]+mm$/, message: '规格格式必须为数字x数字mm，如600x600mm', trigger: 'blur' }
+  ],
+  surface: [{ required: true, message: '请选择表面处理', trigger: 'change' }],
+  category: [{ required: true, message: '请选择分类', trigger: 'change' }],
+  warehouse_num: [
+    { required: true, message: '请输入仓库编码', trigger: 'blur' },
+    { type: 'number', message: '仓库编码必须为数字', trigger: 'blur' }
+  ],
+  total_pieces: [
+    { required: true, message: '请输入总片数', trigger: 'blur' },
+    { type: 'number', min: 0, message: '总片数不能小于0', trigger: 'blur' }
+  ],
+  pieces_per_box: [
+    { required: true, message: '请输入每箱片数', trigger: 'blur' },
+    { type: 'number', min: 1, message: '每箱片数至少为1', trigger: 'blur' }
+  ],
+  price_per_piece: [
+    { required: true, message: '请输入单片价格', trigger: 'blur' },
+    { type: 'number', min: 0, message: '单片价格不能小于0', trigger: 'blur' }
+  ]
+});
+
+// 搜索函数（匹配接口 /api/inventory/items）
 const performSearch = async () => {
+  loading.value = true;
   try {
     const params: InventoryQueryParams = {
       page: page.value,
@@ -77,26 +101,34 @@ const performSearch = async () => {
       searchResults.value = data.data.items;
       total.value = data.data.total || 0;
     } else {
-      searchResults.value = [mockResult];
-      total.value = 1;
-      ElMessage.warning('数据格式异常，已显示默认结果');
+      searchResults.value = [];
+      total.value = 0;
+      ElMessage.warning('未找到匹配的数据');
     }
   } catch (error) {
-    console.error('Search failed:', error);
-    searchResults.value = [mockResult];
-    total.value = 1;
-    ElMessage.warning('无法获取后端数据，已显示默认结果');
+    console.error('搜索失败:', error);
+    searchResults.value = [];
+    total.value = 0;
+    ElMessage.error('获取数据失败，请检查网络连接或联系管理员');
+  } finally {
+    loading.value = false;
   }
 };
 
-// Edit record（匹配接口 /api/inventory/items/{id}）
+// 编辑记录（匹配接口 /api/inventory/items/{id}）
 const handleEdit = (row: InventoryItem) => {
   editForm.value = { ...row };
   editDialogVisible.value = true;
 };
 
+const formRef = ref(null);
+
 const saveEdit = async () => {
+  if (!formRef.value) return;
+
   try {
+    await (formRef.value as any).validate();
+
     const updateData: InventoryItem = {
       id: editForm.value.id,
       model_number: editForm.value.model_number,
@@ -108,48 +140,53 @@ const saveEdit = async () => {
       total_pieces: editForm.value.total_pieces,
       price_per_piece: editForm.value.price_per_piece,
       pieces_per_box: editForm.value.pieces_per_box,
-      remark: editForm.value.remark || undefined,
+      remark: editForm.value.remark || '',
     };
+
     const response = await updateInventoryItem(editForm.value.id!, updateData);
-    const data = response.data;
-    if (data.code === 200) {
+    if (response.data.code === 200) {
       ElMessage.success('编辑成功');
       editDialogVisible.value = false;
       await performSearch();
     } else {
-      throw new Error('响应状态异常');
+      ElMessage.error(response.data.message || '编辑失败');
     }
   } catch (error) {
-    console.error('Failed to update inventory record:', error);
-    ElMessage.error('编辑失败，请稍后重试');
+    console.error('更新库存记录失败:', error);
+    ElMessage.error('表单验证失败或编辑失败，请检查输入并重试');
   }
 };
 
-// Delete record（匹配接口 /api/inventory/items/{id}）
+// 删除记录（匹配接口 /api/inventory/items/{id}）
 const handleDelete = async (row: InventoryItem) => {
+  if (!isAdmin) {
+    ElMessage.warning('只有管理员才能删除库存记录');
+    return;
+  }
+
   try {
-    await ElMessageBox.confirm('确定删除此库存记录吗？', '提示', {
+    await ElMessageBox.confirm('确定删除此库存记录吗？这个操作不可恢复。', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning',
     });
+
     const response = await deleteInventoryItem(row.id!);
-    const data = response.data;
-    if (data.code === 200) {
+    if (response.data.code === 200) {
       ElMessage.success('删除成功');
       await performSearch();
     } else {
-      throw new Error('响应状态异常');
+      ElMessage.error(response.data.message || '删除失败');
     }
   } catch (error) {
     if ((error as any).message !== 'cancel') {
-      console.error('Failed to delete inventory record:', error);
-      ElMessage.error('删除失败，请稍后重试');
+      console.error('删除库存记录失败:', error);
+      ElMessage.error('删除失败，请稍后重试或联系管理员');
     }
   }
 };
 
-// Pagination handler
+// 分页处理器
 const handlePageChange = (newPage: number) => {
   page.value = newPage;
   performSearch();
@@ -157,169 +194,210 @@ const handlePageChange = (newPage: number) => {
 
 const handleSizeChange = (newSize: number) => {
   size.value = newSize;
-  page.value = 1; // Reset to first page
+  page.value = 1; // 重置到第一页
   performSearch();
 };
+
+// 重置搜索条件
+const resetSearch = () => {
+  category.value = null;
+  surface.value = null;
+  page.value = 1;
+};
+
+// 初始加载数据
+performSearch();
 </script>
 
 <template>
-  <h1>库存查询</h1>
-  <hr>
-  <div class="header-container">
-    <div class="options-section">
-      <div class="options-column">
-        <div class="option-group">
-          <div class="label">产品分类：</div>
-          <el-radio-group v-model="category">
-            <el-radio
-                v-for="item in categoryOptions"
-                :key="item.value"
-                :label="item.value"
-                class="radio-item"
-            >
-              {{ item.label }}
-            </el-radio>
-          </el-radio-group>
-        </div>
-        <div class="option-group">
-          <div class="label">表面处理：</div>
-          <el-radio-group v-model="surface">
-            <el-radio
-                v-for="item in surfaceOptions"
-                :key="item.value"
-                :label="item.value"
-                class="radio-item"
-            >
-              {{ item.label }}
-            </el-radio>
-          </el-radio-group>
+  <div class="inventory-query-container">
+    <h1>库存查询</h1>
+    <el-divider />
+
+    <div class="header-container">
+      <div class="options-section">
+        <div class="options-column">
+          <div class="option-group">
+            <div class="label">产品分类：</div>
+            <el-radio-group v-model="category">
+              <el-radio :label="null" class="radio-item">全部</el-radio>
+              <el-radio
+                  v-for="item in categoryOptions"
+                  :key="item.value"
+                  :label="item.value"
+                  class="radio-item"
+              >
+                {{ item.label }}
+              </el-radio>
+            </el-radio-group>
+          </div>
+          <div class="option-group">
+            <div class="label">表面处理：</div>
+            <el-radio-group v-model="surface">
+              <el-radio :label="null" class="radio-item">全部</el-radio>
+              <el-radio
+                  v-for="item in surfaceOptions"
+                  :key="item.value"
+                  :label="item.value"
+                  class="radio-item"
+              >
+                {{ item.label }}
+              </el-radio>
+            </el-radio-group>
+          </div>
         </div>
       </div>
+      <div class="button-section">
+        <el-button type="default" @click="resetSearch">重置</el-button>
+        <el-button type="primary" :loading="loading" @click="performSearch">
+          搜索
+        </el-button>
+      </div>
     </div>
-    <div class="button-section">
-      <el-button type="primary" round class="search-btn" @click="performSearch">
-        搜索
-      </el-button>
+    <el-divider />
+
+    <!-- 搜索结果 -->
+    <div class="results">
+      <el-table
+          v-loading="loading"
+          :data="searchResults"
+          style="width: 100%"
+          border
+          max-height="600"
+      >
+        <el-table-column prop="id" label="ID" width="80" fixed />
+        <el-table-column prop="model_number" label="产品型号" width="120" fixed />
+        <el-table-column prop="manufacturer" label="制造厂商" width="120" />
+        <el-table-column prop="specification" label="规格" width="120" />
+        <el-table-column prop="surface" label="表面处理" width="120">
+          <template #default="{ row }">
+            {{ surfaceOptions.find(opt => opt.value === row.surface)?.label || '未知' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="category" label="分类" width="100">
+          <template #default="{ row }">
+            {{ categoryOptions.find(opt => opt.value === row.category)?.label || '未知' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="warehouse_num" label="仓库编码" width="100" />
+        <el-table-column prop="total_pieces" label="总片数" width="100">
+          <template #default="{ row }">
+            {{ row.total_pieces.toLocaleString() }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="pieces_per_box" label="每箱片数" width="100" />
+        <el-table-column prop="price_per_piece" label="单片价格" width="120">
+          <template #default="{ row }">
+            ¥{{ row.price_per_piece.toFixed(2) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="create_time" label="创建时间" width="160" />
+        <el-table-column prop="update_time" label="更新时间" width="160" />
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button type="danger" size="small" v-if="isAdmin" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div v-if="!loading && searchResults.length === 0" class="no-data">
+        暂无匹配数据
+      </div>
+
+      <!-- 编辑对话框 -->
+      <el-dialog v-model="editDialogVisible" title="编辑库存记录" width="500px" destroy-on-close>
+        <el-form ref="formRef" :model="editForm" :rules="formRules" label-width="100px" label-position="right">
+          <el-form-item label="产品型号" prop="model_number">
+            <el-input v-model="editForm.model_number" />
+          </el-form-item>
+          <el-form-item label="制造厂商" prop="manufacturer">
+            <el-input v-model="editForm.manufacturer" />
+          </el-form-item>
+          <el-form-item label="规格" prop="specification">
+            <el-input v-model="editForm.specification" placeholder="例如：600x600mm" />
+          </el-form-item>
+          <el-form-item label="表面处理" prop="surface">
+            <el-select v-model="editForm.surface" placeholder="请选择表面处理">
+              <el-option
+                  v-for="item in surfaceOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="分类" prop="category">
+            <el-select v-model="editForm.category" placeholder="请选择分类">
+              <el-option
+                  v-for="item in categoryOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="仓库编码" prop="warehouse_num">
+            <el-input v-model.number="editForm.warehouse_num" type="number" disabled />
+            <div class="form-tip">仓库编码不可修改</div>
+          </el-form-item>
+          <el-form-item label="总片数" prop="total_pieces">
+            <el-input v-model.number="editForm.total_pieces" type="number" min="0" />
+          </el-form-item>
+          <el-form-item label="每箱片数" prop="pieces_per_box">
+            <el-input v-model.number="editForm.pieces_per_box" type="number" min="1" />
+          </el-form-item>
+          <el-form-item label="单片价格" prop="price_per_piece">
+            <el-input v-model.number="editForm.price_per_piece" type="number" min="0" step="0.01">
+              <template #prefix>¥</template>
+            </el-input>
+          </el-form-item>
+          <el-form-item label="备注">
+            <el-input v-model="editForm.remark" type="textarea" rows="3" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="editDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="saveEdit">保存</el-button>
+        </template>
+      </el-dialog>
     </div>
-  </div>
-  <hr>
 
-  <!-- Search Results -->
-  <div class="results mt-4">
-    <el-table
-        v-if="searchResults.length > 0"
-        :data="searchResults"
-        style="width: 100%"
-        border
-    >
-      <el-table-column prop="id" label="库存ID" width="80" />
-      <el-table-column prop="model_number" label="产品型号" width="150" />
-      <el-table-column prop="manufacturer" label="制造厂商" width="140" />
-      <el-table-column prop="specification" label="规格" width="120" />
-      <el-table-column prop="surface" label="表面处理" width="120">
-        <template #default="{ row }">
-          {{ surfaceOptions.find(opt => opt.value === row.surface)?.label || '未知' }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="category" label="分类" width="100">
-        <template #default="{ row }">
-          {{ categoryOptions.find(opt => opt.value === row.category)?.label || '未知' }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="warehouse_num" label="仓库编码" width="120" />
-      <el-table-column prop="total_pieces" label="总片数" width="120" />
-      <el-table-column prop="pieces_per_box" label="每箱片数" width="100" />
-      <el-table-column prop="price_per_piece" label="单片价格" width="150" />
-      <el-table-column prop="remark" label="备注" width="200" />
-      <el-table-column prop="create_time" label="创建时间" width="180" />
-      <el-table-column prop="update_time" label="更新时间" width="180" />
-      <el-table-column label="操作" width="150" fixed="right">
-        <template #default="{ row }">
-          <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-          <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-    <div v-else class="no-data">
-      {{ category || surface ? '暂无匹配数据' : '请输入搜索条件' }}
+    <!-- 底部的分页 -->
+    <div class="pagination-container">
+      <el-pagination
+          v-if="total > 0"
+          :current-page="page"
+          :page-size="size"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+      />
     </div>
-
-    <!-- Edit Dialog -->
-    <el-dialog v-model="editDialogVisible" title="编辑库存记录" width="30%">
-      <el-form :model="editForm" label-width="100px">
-        <el-form-item label="产品型号">
-          <el-input v-model="editForm.model_number" />
-        </el-form-item>
-        <el-form-item label="制造厂商">
-          <el-input v-model="editForm.manufacturer" />
-        </el-form-item>
-        <el-form-item label="规格">
-          <el-input v-model="editForm.specification" />
-        </el-form-item>
-        <el-form-item label="表面处理">
-          <el-select v-model="editForm.surface">
-            <el-option
-                v-for="item in surfaceOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="分类">
-          <el-select v-model="editForm.category">
-            <el-option
-                v-for="item in categoryOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="仓库编码">
-          <el-input v-model.number="editForm.warehouse_num" type="number" disabled />
-        </el-form-item>
-        <el-form-item label="总片数">
-          <el-input v-model.number="editForm.total_pieces" type="number" />
-        </el-form-item>
-        <el-form-item label="每箱片数">
-          <el-input v-model.number="editForm.pieces_per_box" type="number" />
-        </el-form-item>
-        <el-form-item label="单片价格">
-          <el-input v-model.number="editForm.price_per_piece" type="number" step="0.01" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="editForm.remark" type="textarea" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveEdit">保存</el-button>
-      </template>
-    </el-dialog>
-  </div>
-
-  <!-- Pagination at the bottom center -->
-  <div class="pagination-container">
-    <el-pagination
-        v-if="searchResults.length > 0"
-        :current-page="page"
-        :page-size="size"
-        :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-    />
   </div>
 </template>
 
 <style scoped>
+.inventory-query-container {
+  padding: 0 20px;
+}
+
+h1 {
+  font-size: 24px;
+  color: #303133;
+  margin-bottom: 20px;
+}
+
 .header-container {
   display: flex;
   align-items: flex-start;
   width: 100%;
   gap: 20px;
+  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 .options-section {
@@ -333,6 +411,7 @@ const handleSizeChange = (newSize: number) => {
   display: flex;
   justify-content: flex-end;
   align-items: flex-start;
+  gap: 10px;
 }
 
 .options-column {
@@ -340,13 +419,13 @@ const handleSizeChange = (newSize: number) => {
   display: flex;
   align-items: flex-start;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
 }
 
 .option-group {
   display: flex;
   align-items: flex-start;
-  gap: 1px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -355,16 +434,11 @@ const handleSizeChange = (newSize: number) => {
   padding-top: 4px;
   color: #606266;
   min-width: 80px;
+  font-weight: 500;
 }
 
 .radio-item {
-  margin-right: 10px;
-}
-
-.search-btn {
-  height: auto;
-  padding: 30px 30px;
-  font-size: 16px;
+  margin-right: 16px;
 }
 
 .results {
@@ -373,18 +447,24 @@ const handleSizeChange = (newSize: number) => {
 
 .no-data {
   text-align: center;
-  padding: 20px;
-  color: #666;
-}
-
-.mt-4 {
-  margin-top: 16px;
+  padding: 40px;
+  color: #909399;
+  font-size: 14px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  margin-top: 20px;
 }
 
 .pagination-container {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
-  padding-bottom: 20px;
+  margin-top: 30px;
+  padding-bottom: 30px;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
 }
 </style>

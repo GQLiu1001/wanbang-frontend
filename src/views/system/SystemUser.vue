@@ -49,7 +49,7 @@
 
       <el-form-item label="新密码">
         <el-input
-            v-model="userForm.newPassword"
+            v-model="userForm.password"
             type="password"
             placeholder="请输入新密码（可选）"
             show-password
@@ -77,7 +77,7 @@
 import { onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
-import { updateUser } from '@/api/user';
+import { updateUser, uploadAvatar } from '@/api/user';
 import { Plus } from '@element-plus/icons-vue';
 import router from '@/router';
 
@@ -93,14 +93,14 @@ if (!currentUser) {
 // 文件输入引用
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
-// 用户表单数据
+// 用户表单数据 - 修改字段名与API一致
 const userForm = ref({
   avatar: currentUser?.avatar || '',
   username: currentUser?.username || '',
   phone: currentUser?.phone || '',
-  oldPassword: '',
-  newPassword: '',
-  confirmPassword: '',
+  oldPassword: '',  // 旧密码
+  password: '',     // 新密码 - 字段名改为与API匹配
+  confirmPassword: '', // 确认密码 (前端验证用)
 });
 
 // 用户 ID
@@ -126,7 +126,7 @@ const validateFile = (file: File): boolean => {
   return true;
 };
 
-// 处理文件变更
+// 处理文件变更 - 使用API模块中的uploadAvatar函数
 const handleFileChange = async (event: Event) => {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -142,40 +142,13 @@ const handleFileChange = async (event: Event) => {
   }
 
   try {
-    console.log('开始上传文件:', file.name);
+    const response = await uploadAvatar(file);
 
-    // 创建FormData
-    const formData = new FormData();
-    formData.append('file', file);
-
-    // 获取token
-    const token = localStorage.getItem('satoken');
-
-    // 使用原生fetch API直接上传
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      headers: {
-        // 不要手动设置Content-Type，让浏览器自动处理
-        // 添加token进请求头
-        'satoken': token || ''
-      },
-      body: formData
-    });
-
-    console.log('上传状态:', response.status, response.statusText);
-
-    if (!response.ok) {
-      throw new Error(`上传失败: ${response.status} ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    console.log('上传响应:', result);
-
-    if (result.code === 200) {
-      userForm.value.avatar = result.data.fileUrl;
+    if (response.data.code === 200) {
+      userForm.value.avatar = response.data.data.fileUrl;
       ElMessage.success('头像上传成功');
     } else {
-      throw new Error(result.message || '上传失败');
+      throw new Error(response.data.message || '上传失败');
     }
   } catch (error: any) {
     console.error('头像上传失败:', error);
@@ -209,12 +182,12 @@ const submitUserInfo = async () => {
     }
 
     // 密码相关校验
-    if (userForm.value.oldPassword || userForm.value.newPassword || userForm.value.confirmPassword) {
+    if (userForm.value.oldPassword || userForm.value.password || userForm.value.confirmPassword) {
       if (!userForm.value.oldPassword) {
         ElMessage.error('请输入旧密码');
         return;
       }
-      if (!userForm.value.newPassword) {
+      if (!userForm.value.password) {
         ElMessage.error('请输入新密码');
         return;
       }
@@ -222,43 +195,53 @@ const submitUserInfo = async () => {
         ElMessage.error('请再次输入新密码');
         return;
       }
-      if (userForm.value.newPassword !== userForm.value.confirmPassword) {
+      if (userForm.value.password !== userForm.value.confirmPassword) {
         ElMessage.error('两次输入的新密码不一致');
         return;
       }
-      if (userForm.value.newPassword.length < 6) {
+      if (userForm.value.password.length < 6) {
         ElMessage.error('新密码长度需至少6位');
         return;
       }
     }
 
-    // 构建提交数据
+    // 构建提交数据 - 按API文档格式
     const submitData = {
-      avatar: userForm.value.avatar || '', // 使用 fileUrl 或空字符串
+      avatar: userForm.value.avatar || '',
       username: userForm.value.username,
       phone: userForm.value.phone,
-      ...(userForm.value.newPassword && {
-        oldPassword: userForm.value.oldPassword,
-        password: userForm.value.newPassword,
-      }),
     };
 
-    console.log('提交用户数据:', submitData);
+    // 如果用户修改了密码，添加密码字段
+    if (userForm.value.password) {
+      submitData.oldPassword = userForm.value.oldPassword;
+      submitData.password = userForm.value.password;
+    }
 
-    // 调用 updateUser 更新用户信息和密码
+    // 调用 updateUser 更新用户信息
     const response = await updateUser(userId.value, submitData);
-    console.log('更新用户响应:', response);
 
-    // 更新本地存储的用户信息
-    userStore.setUserInfo({
-      ...currentUser,
-      id: userId.value,
-      username: userForm.value.username,
-      avatar: userForm.value.avatar || '',
-      phone: userForm.value.phone,
-    });
+    if (response.data.code === 200) {
+      // 更新本地存储的用户信息
+      userStore.setUserInfo({
+        ...currentUser,
+        id: userId.value,
+        username: userForm.value.username,
+        avatar: userForm.value.avatar || '',
+        phone: userForm.value.phone,
+      });
 
-    ElMessage.success('用户信息更新成功');
+      ElMessage.success('用户信息更新成功');
+
+      // 如果更新了密码，清空密码字段
+      if (userForm.value.password) {
+        userForm.value.oldPassword = '';
+        userForm.value.password = '';
+        userForm.value.confirmPassword = '';
+      }
+    } else {
+      throw new Error(response.data.message || '更新失败');
+    }
   } catch (error: any) {
     console.error('更新用户信息失败:', error);
     ElMessage.error(`更新失败: ${error.message || '请稍后重试'}`);
@@ -272,13 +255,14 @@ const resetForm = () => {
     username: currentUser?.username || '',
     phone: currentUser?.phone || '',
     oldPassword: '',
-    newPassword: '',
+    password: '',
     confirmPassword: '',
   };
 };
 </script>
 
 <style scoped>
+/* 样式保持不变 */
 .page-container {
   display: flex;
   flex-direction: column;

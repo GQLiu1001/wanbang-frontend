@@ -1,10 +1,10 @@
 <!--订单列表-->
+<!--订单列表-->
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
-// 实际项目中应导入真实API
-// import { getOrders, getOrderDetail, updateOrder, deleteOrder } from '@/api/order';
+import { getOrders, getOrderDetail, updateOrder, updateOrderItem, addOrderItem, deleteOrderItem, deleteOrder } from '@/api/order';
 
 // 订单项类型
 interface OrderItem {
@@ -33,131 +33,11 @@ interface Order {
   order_create_time: string;
   order_update_time: string;
   aftersale_status?: number | null;
-  items: OrderItem[];  // 订单包含的多个商品项
+  items?: OrderItem[];  // 订单包含的多个商品项
+  items_count?: number; // 订单项数量
 }
 
 const router = useRouter();
-
-// 模拟多产品订单数据
-const mockOrders: Order[] = [
-  {
-    id: 1,
-    order_no: 'ORD202503020001',
-    customer_phone: '13912345678',
-    operator_id: 1,
-    operator_name: '管理员',
-    total_amount: 5000.00,
-    adjusted_amount: null,
-    order_remark: '客户批量订单',
-    order_create_time: '2025-03-02 10:00:00',
-    order_update_time: '2025-03-02 10:00:00',
-    aftersale_status: null,
-    items: [
-      {
-        id: 1,
-        order_id: 1,
-        item_id: 1,
-        model_number: 'TB6001',
-        specification: '600x600mm',
-        manufacturer: '瓷都',
-        quantity: 50,
-        price_per_piece: 25.00,
-        subtotal: 1250.00,
-        adjusted_quantity: null
-      },
-      {
-        id: 2,
-        order_id: 1,
-        item_id: 2,
-        model_number: 'TB8001',
-        specification: '800x800mm',
-        manufacturer: '瓷都',
-        quantity: 100,
-        price_per_piece: 35.00,
-        subtotal: 3500.00,
-        adjusted_quantity: null
-      },
-      {
-        id: 3,
-        order_id: 1,
-        item_id: 3,
-        model_number: 'TB6002',
-        specification: '600x600mm',
-        manufacturer: '瓷都',
-        quantity: 10,
-        price_per_piece: 25.00,
-        subtotal: 250.00,
-        adjusted_quantity: null
-      }
-    ]
-  },
-  {
-    id: 2,
-    order_no: 'ORD202503020002',
-    customer_phone: '13987654321',
-    operator_id: 1,
-    operator_name: '管理员',
-    total_amount: 3500.00,
-    adjusted_amount: 3325.00,
-    order_remark: '客户首批订单',
-    order_create_time: '2025-03-02 11:30:00',
-    order_update_time: '2025-03-02 14:15:00',
-    aftersale_status: 2,
-    items: [
-      {
-        id: 4,
-        order_id: 2,
-        item_id: 2,
-        model_number: 'TB8001',
-        specification: '800x800mm',
-        manufacturer: '瓷都',
-        quantity: 100,
-        price_per_piece: 35.00,
-        subtotal: 3500.00,
-        adjusted_quantity: 95
-      }
-    ]
-  },
-  {
-    id: 3,
-    order_no: 'ORD202503010001',
-    customer_phone: '13811112222',
-    operator_id: 2,
-    operator_name: '销售人员',
-    total_amount: 2500.00,
-    adjusted_amount: 2750.00,
-    order_remark: '样品订单',
-    order_create_time: '2025-03-01 09:15:00',
-    order_update_time: '2025-03-01 16:30:00',
-    aftersale_status: 2,
-    items: [
-      {
-        id: 5,
-        order_id: 3,
-        item_id: 1,
-        model_number: 'TB6001',
-        specification: '600x600mm',
-        manufacturer: '瓷都',
-        quantity: 30,
-        price_per_piece: 25.00,
-        subtotal: 750.00,
-        adjusted_quantity: 40
-      },
-      {
-        id: 6,
-        order_id: 3,
-        item_id: 4,
-        model_number: 'TB7001',
-        specification: '700x700mm',
-        manufacturer: '瓷都',
-        quantity: 50,
-        price_per_piece: 35.00,
-        subtotal: 1750.00,
-        adjusted_quantity: 50
-      }
-    ]
-  }
-];
 
 // 订单记录
 const orderListData = ref<Order[]>([]);
@@ -238,53 +118,71 @@ const pickerOptions = {
 };
 
 // 获取订单列表
-const fetchOrderList = () => {
-  // 在实际项目中，这里应该调用API获取数据
-  // 现在我们使用Mock数据
+const fetchOrderList = async () => {
+  try {
+    const params: any = {
+      page: page.value,
+      size: size.value
+    };
 
-  // 筛选数据
-  let filteredOrders = [...mockOrders];
-
-  // 应用手机号筛选
-  if (searchPhone.value.trim()) {
-    filteredOrders = filteredOrders.filter(order =>
-        order.customer_phone.includes(searchPhone.value.trim())
-    );
-  }
-
-  // 应用日期筛选
-  if (searchDateRange.value && searchDateRange.value.length === 2) {
-    const [startDate, endDate] = searchDateRange.value;
-    if (startDate && endDate) {
-      const startTime = startDate.getTime();
-      const endTime = new Date(endDate.getTime() + 24 * 60 * 60 * 1000 - 1).getTime();
-
-      filteredOrders = filteredOrders.filter(order => {
-        const orderTime = new Date(order.order_create_time).getTime();
-        return orderTime >= startTime && orderTime <= endTime;
-      });
+    // 应用手机号筛选
+    if (searchPhone.value.trim()) {
+      params.customer_phone = searchPhone.value.trim();
     }
+
+    // 应用日期筛选
+    if (searchDateRange.value && searchDateRange.value.length === 2) {
+      const [startDate, endDate] = searchDateRange.value;
+      if (startDate && endDate) {
+        params.start_time = formatDate(startDate);
+        params.end_time = formatDate(endDate, true);
+      }
+    }
+
+    const response = await getOrders(params);
+    if (response.data && response.data.code === 200) {
+      const data = response.data.data;
+      orderListData.value = data.items || [];
+      total.value = data.total || 0;
+    } else {
+      ElMessage.error('获取订单列表失败');
+    }
+  } catch (error) {
+    console.error('获取订单列表出错:', error);
+    ElMessage.error('获取订单列表出错');
   }
+};
 
-  // 计算分页
-  const startIndex = (page.value - 1) * size.value;
-  const endIndex = startIndex + size.value;
+// 格式化日期
+const formatDate = (date: Date, isEndDate = false) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
 
-  total.value = filteredOrders.length;
-  orderListData.value = filteredOrders.slice(startIndex, endIndex);
+  if (isEndDate) {
+    return `${year}-${month}-${day} 23:59:59`;
+  }
+  return `${year}-${month}-${day} 00:00:00`;
 };
 
 // 查看订单详情
-const handleViewDetail = (order: Order) => {
-  orderItemsLoading.value = true;
-  // 模拟API请求延迟
-  setTimeout(() => {
-    // 在实际应用中，这里会通过API获取详细信息
-    // 现在我们使用Mock数据中的订单详情
-    currentOrderDetail.value = mockOrders.find(o => o.id === order.id) || null;
-    detailDialogVisible.value = true;
+const handleViewDetail = async (order: Order) => {
+  try {
+    orderItemsLoading.value = true;
+    const response = await getOrderDetail(order.id);
+
+    if (response.data && response.data.code === 200) {
+      currentOrderDetail.value = response.data.data;
+      detailDialogVisible.value = true;
+    } else {
+      ElMessage.error('获取订单详情失败');
+    }
+  } catch (error) {
+    console.error('获取订单详情出错:', error);
+    ElMessage.error('获取订单详情出错');
+  } finally {
     orderItemsLoading.value = false;
-  }, 300);
+  }
 };
 
 // 跳转到售后处理页面
@@ -309,7 +207,7 @@ const handleEditOrder = (order: Order) => {
 };
 
 // 保存订单基本信息
-const saveOrderEdit = () => {
+const saveOrderEdit = async () => {
   if (!editOrderForm.value.id) {
     ElMessage.error('订单ID不能为空');
     return;
@@ -325,21 +223,26 @@ const saveOrderEdit = () => {
     return;
   }
 
-  // 在实际项目中，这里应该调用API更新数据
-  // 现在我们直接更新Mock数据
-  const index = mockOrders.findIndex(order => order.id === editOrderForm.value.id);
-  if (index !== -1) {
-    mockOrders[index] = {
-      ...mockOrders[index],
-      customer_phone: editOrderForm.value.customer_phone!,
-      operator_id: editOrderForm.value.operator_id!,
-      order_remark: editOrderForm.value.order_remark,
-      order_update_time: new Date().toISOString().replace('T', ' ').slice(0, 19)
+  try {
+    const orderId = editOrderForm.value.id;
+    const orderData = {
+      customer_phone: editOrderForm.value.customer_phone,
+      operator_id: editOrderForm.value.operator_id,
+      order_remark: editOrderForm.value.order_remark
     };
 
-    ElMessage.success('订单基本信息更新成功');
-    editOrderDialogVisible.value = false;
-    fetchOrderList();
+    const response = await updateOrder(orderId, orderData);
+
+    if (response.data && response.data.code === 200) {
+      ElMessage.success('订单基本信息更新成功');
+      editOrderDialogVisible.value = false;
+      fetchOrderList();
+    } else {
+      ElMessage.error(response.data?.message || '更新订单信息失败');
+    }
+  } catch (error) {
+    console.error('更新订单信息出错:', error);
+    ElMessage.error('更新订单信息出错');
   }
 };
 
@@ -363,7 +266,7 @@ const updateSubtotal = () => {
 };
 
 // 保存订单项编辑
-const saveItemEdit = () => {
+const saveItemEdit = async () => {
   if (!currentEditItem.value) {
     ElMessage.error('获取订单项信息失败');
     return;
@@ -379,37 +282,31 @@ const saveItemEdit = () => {
     return;
   }
 
-  // 在实际项目中，这里应该调用API更新数据
-  // 现在我们直接更新Mock数据
-  const orderIndex = mockOrders.findIndex(order => order.id === currentEditItem.value!.order_id);
-  if (orderIndex !== -1) {
-    const itemIndex = mockOrders[orderIndex].items.findIndex(item => item.id === currentEditItem.value!.id);
-    if (itemIndex !== -1) {
-      // 保存旧的小计金额
-      const oldSubtotal = mockOrders[orderIndex].items[itemIndex].subtotal;
+  try {
+    const itemData = {
+      quantity: editItemForm.value.quantity,
+      price_per_piece: editItemForm.value.price_per_piece,
+      subtotal: editItemForm.value.subtotal
+    };
 
-      // 更新订单项
-      mockOrders[orderIndex].items[itemIndex] = {
-        ...mockOrders[orderIndex].items[itemIndex],
-        quantity: editItemForm.value.quantity,
-        price_per_piece: editItemForm.value.price_per_piece,
-        subtotal: editItemForm.value.subtotal
-      };
+    const response = await updateOrderItem(editItemForm.value.id, itemData);
 
-      // 更新订单总金额
-      mockOrders[orderIndex].total_amount = mockOrders[orderIndex].total_amount - oldSubtotal + editItemForm.value.subtotal;
-      mockOrders[orderIndex].order_update_time = new Date().toISOString().replace('T', ' ').slice(0, 19);
-
+    if (response.data && response.data.code === 200) {
       ElMessage.success('订单项更新成功');
       editOrderItemDialogVisible.value = false;
 
-      // 如果当前有打开的订单详情，刷新它
-      if (currentOrderDetail.value && currentOrderDetail.value.id === mockOrders[orderIndex].id) {
-        currentOrderDetail.value = {...mockOrders[orderIndex]};
+      // 如果当前有打开的订单详情，重新获取并刷新它
+      if (currentOrderDetail.value && currentOrderDetail.value.id) {
+        handleViewDetail({id: currentOrderDetail.value.id} as Order);
       }
 
       fetchOrderList();
+    } else {
+      ElMessage.error(response.data?.message || '更新订单项失败');
     }
+  } catch (error) {
+    console.error('更新订单项出错:', error);
+    ElMessage.error('更新订单项出错');
   }
 };
 
@@ -436,7 +333,7 @@ const updateAddItemSubtotal = () => {
 };
 
 // 保存新添加的订单项
-const saveAddItem = () => {
+const saveAddItem = async () => {
   if (!addItemForm.value.order_id) {
     ElMessage.error('订单ID不能为空');
     return;
@@ -452,16 +349,6 @@ const saveAddItem = () => {
     return;
   }
 
-  if (!addItemForm.value.specification) {
-    ElMessage.error('规格不能为空');
-    return;
-  }
-
-  if (!addItemForm.value.manufacturer) {
-    ElMessage.error('制造商不能为空');
-    return;
-  }
-
   if (!addItemForm.value.quantity || addItemForm.value.quantity <= 0) {
     ElMessage.error('数量必须大于0');
     return;
@@ -472,43 +359,34 @@ const saveAddItem = () => {
     return;
   }
 
-  // 在实际项目中，这里应该调用API添加数据
-  // 现在我们直接更新Mock数据
-  const orderIndex = mockOrders.findIndex(order => order.id === addItemForm.value.order_id);
-  if (orderIndex !== -1) {
-    // 生成新的订单项ID
-    const newItemId = Math.max(...mockOrders.flatMap(order => order.items.map(item => item.id))) + 1;
-
-    // 创建新订单项
-    const newItem: OrderItem = {
-      id: newItemId,
-      order_id: addItemForm.value.order_id,
+  try {
+    const orderId = addItemForm.value.order_id;
+    const itemData = {
       item_id: addItemForm.value.item_id,
       model_number: addItemForm.value.model_number,
-      specification: addItemForm.value.specification,
-      manufacturer: addItemForm.value.manufacturer,
       quantity: addItemForm.value.quantity,
       price_per_piece: addItemForm.value.price_per_piece,
-      subtotal: addItemForm.value.subtotal,
-      adjusted_quantity: null
+      subtotal: addItemForm.value.subtotal
     };
 
-    // 添加到订单
-    mockOrders[orderIndex].items.push(newItem);
+    const response = await addOrderItem(orderId, itemData);
 
-    // 更新订单总金额
-    mockOrders[orderIndex].total_amount += addItemForm.value.subtotal;
-    mockOrders[orderIndex].order_update_time = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    if (response.data && response.data.code === 200) {
+      ElMessage.success('添加订单项成功');
+      addOrderItemDialogVisible.value = false;
 
-    ElMessage.success('添加订单项成功');
-    addOrderItemDialogVisible.value = false;
+      // 如果当前有打开的订单详情，重新获取并刷新它
+      if (currentOrderDetail.value && currentOrderDetail.value.id === orderId) {
+        handleViewDetail({id: orderId} as Order);
+      }
 
-    // 如果当前有打开的订单详情，刷新它
-    if (currentOrderDetail.value && currentOrderDetail.value.id === mockOrders[orderIndex].id) {
-      currentOrderDetail.value = {...mockOrders[orderIndex]};
+      fetchOrderList();
+    } else {
+      ElMessage.error(response.data?.message || '添加订单项失败');
     }
-
-    fetchOrderList();
+  } catch (error) {
+    console.error('添加订单项出错:', error);
+    ElMessage.error('添加订单项出错');
   }
 };
 
@@ -518,29 +396,25 @@ const handleDeleteItem = (item: OrderItem) => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    // 在实际项目中，这里应该调用API删除数据
-    // 现在我们直接更新Mock数据
-    const orderIndex = mockOrders.findIndex(order => order.id === item.order_id);
-    if (orderIndex !== -1) {
-      const itemIndex = mockOrders[orderIndex].items.findIndex(i => i.id === item.id);
-      if (itemIndex !== -1) {
-        // 减去订单总金额
-        mockOrders[orderIndex].total_amount -= mockOrders[orderIndex].items[itemIndex].subtotal;
+  }).then(async () => {
+    try {
+      const response = await deleteOrderItem(item.id);
 
-        // 删除订单项
-        mockOrders[orderIndex].items.splice(itemIndex, 1);
-        mockOrders[orderIndex].order_update_time = new Date().toISOString().replace('T', ' ').slice(0, 19);
-
+      if (response.data && response.data.code === 200) {
         ElMessage.success('订单项删除成功');
 
-        // 如果当前有打开的订单详情，刷新它
-        if (currentOrderDetail.value && currentOrderDetail.value.id === mockOrders[orderIndex].id) {
-          currentOrderDetail.value = {...mockOrders[orderIndex]};
+        // 如果当前有打开的订单详情，重新获取并刷新它
+        if (currentOrderDetail.value && currentOrderDetail.value.id === item.order_id) {
+          handleViewDetail({id: item.order_id} as Order);
         }
 
         fetchOrderList();
+      } else {
+        ElMessage.error(response.data?.message || '删除订单项失败');
       }
+    } catch (error) {
+      console.error('删除订单项出错:', error);
+      ElMessage.error('删除订单项出错');
     }
   }).catch(() => {
     // 取消删除
@@ -553,14 +427,19 @@ const handleDeleteOrder = (order: Order) => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    // 在实际项目中，这里应该调用API删除数据
-    // 现在我们直接更新Mock数据
-    const orderIndex = mockOrders.findIndex(o => o.id === order.id);
-    if (orderIndex !== -1) {
-      mockOrders.splice(orderIndex, 1);
-      ElMessage.success('订单删除成功');
-      fetchOrderList();
+  }).then(async () => {
+    try {
+      const response = await deleteOrder(order.id);
+
+      if (response.data && response.data.code === 200) {
+        ElMessage.success('订单删除成功');
+        fetchOrderList();
+      } else {
+        ElMessage.error(response.data?.message || '删除订单失败');
+      }
+    } catch (error) {
+      console.error('删除订单出错:', error);
+      ElMessage.error('删除订单出错');
     }
   }).catch(() => {
     // 取消删除
@@ -589,7 +468,7 @@ const clearFilter = () => {
 
 // 计算商品数量
 const getItemsCount = (order: Order) => {
-  return order.items.length;
+  return order.items_count || 0;
 };
 
 // 售后状态映射
@@ -737,7 +616,7 @@ onMounted(() => {
         </el-descriptions>
 
         <div class="order-items-header">
-          <h3>订单商品 ({{ currentOrderDetail.items.length }}项)</h3>
+          <h3>订单商品 ({{ currentOrderDetail.items?.length || 0 }}项)</h3>
           <div>
             <el-button type="success" size="small" @click="handleAddItem(currentOrderDetail)">添加商品</el-button>
             <el-button type="primary" size="small" @click="handleAftersale(currentOrderDetail)">
@@ -748,7 +627,7 @@ onMounted(() => {
 
         <el-table
             v-loading="orderItemsLoading"
-            :data="currentOrderDetail.items"
+            :data="currentOrderDetail.items || []"
             border
             style="width: 100%"
         >

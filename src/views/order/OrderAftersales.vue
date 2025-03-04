@@ -2,15 +2,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import {ElMessage, ElMessageBox} from 'element-plus';
-// 实际项目中应导入真实API
-// import { getOrderDetail } from '@/api/order';
-// import { createAftersale, getAftersaleLogs } from '@/api/aftersales';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { getOrderDetail } from '@/api/order';
+import { createAftersale, getOrderAftersaleLogs, updateAftersaleStatus } from '@/api/aftersales';
+import { useUserStore } from '@/stores/user';
 
 // 订单项类型
 interface OrderItem {
   id: number;
-  order_id: number;
+  order_id?: number;
   item_id: number;
   model_number: string;
   specification?: string;
@@ -44,7 +44,7 @@ interface AftersaleItem {
   amount_change: number;
 }
 
-// 售后记录类型
+// 售后记录类型 - 与API文档一致
 interface Aftersale {
   id?: number;
   order_id: number;
@@ -59,6 +59,7 @@ interface Aftersale {
 // 路由相关
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
 
 // 加载状态
 const loading = ref(false);
@@ -73,7 +74,7 @@ const aftersaleForm = ref<Aftersale>({
   aftersale_type: null,
   aftersale_status: 1, // 默认为"新建"状态
   resolution_result: '',
-  aftersale_operator: 0,
+  aftersale_operator: userStore.getUserInfo()?.id || 0,
   items: []
 });
 
@@ -93,237 +94,79 @@ const aftersaleItems = ref<{
 const aftersaleLogs = ref<Aftersale[]>([]);
 const aftersaleLogsLoading = ref(false);
 
-// 模拟多产品订单数据
-const mockOrders = [
-  {
-    id: 1,
-    order_no: 'ORD202503020001',
-    customer_phone: '13912345678',
-    operator_id: 1,
-    operator_name: '管理员',
-    total_amount: 5000.00,
-    adjusted_amount: null,
-    order_remark: '客户批量订单',
-    order_create_time: '2025-03-02 10:00:00',
-    order_update_time: '2025-03-02 10:00:00',
-    aftersale_status: null,
-    items: [
-      {
-        id: 1,
-        order_id: 1,
-        item_id: 1,
-        model_number: 'TB6001',
-        specification: '600x600mm',
-        manufacturer: '瓷都',
-        quantity: 50,
-        price_per_piece: 25.00,
-        subtotal: 1250.00,
-        adjusted_quantity: null
-      },
-      {
-        id: 2,
-        order_id: 1,
-        item_id: 2,
-        model_number: 'TB8001',
-        specification: '800x800mm',
-        manufacturer: '瓷都',
-        quantity: 100,
-        price_per_piece: 35.00,
-        subtotal: 3500.00,
-        adjusted_quantity: null
-      },
-      {
-        id: 3,
-        order_id: 1,
-        item_id: 3,
-        model_number: 'TB6002',
-        specification: '600x600mm',
-        manufacturer: '瓷都',
-        quantity: 10,
-        price_per_piece: 25.00,
-        subtotal: 250.00,
-        adjusted_quantity: null
-      }
-    ]
-  },
-  {
-    id: 2,
-    order_no: 'ORD202503020002',
-    customer_phone: '13987654321',
-    operator_id: 1,
-    operator_name: '管理员',
-    total_amount: 3500.00,
-    adjusted_amount: 3325.00,
-    order_remark: '客户首批订单',
-    order_create_time: '2025-03-02 11:30:00',
-    order_update_time: '2025-03-02 14:15:00',
-    aftersale_status: 2,
-    items: [
-      {
-        id: 4,
-        order_id: 2,
-        item_id: 2,
-        model_number: 'TB8001',
-        specification: '800x800mm',
-        manufacturer: '瓷都',
-        quantity: 100,
-        price_per_piece: 35.00,
-        subtotal: 3500.00,
-        adjusted_quantity: 95
-      }
-    ]
-  },
-  {
-    id: 3,
-    order_no: 'ORD202503010001',
-    customer_phone: '13811112222',
-    operator_id: 2,
-    operator_name: '销售人员',
-    total_amount: 2500.00,
-    adjusted_amount: 2750.00,
-    order_remark: '样品订单',
-    order_create_time: '2025-03-01 09:15:00',
-    order_update_time: '2025-03-01 16:30:00',
-    aftersale_status: 2,
-    items: [
-      {
-        id: 5,
-        order_id: 3,
-        item_id: 1,
-        model_number: 'TB6001',
-        specification: '600x600mm',
-        manufacturer: '瓷都',
-        quantity: 30,
-        price_per_piece: 25.00,
-        subtotal: 750.00,
-        adjusted_quantity: 40
-      },
-      {
-        id: 6,
-        order_id: 3,
-        item_id: 4,
-        model_number: 'TB7001',
-        specification: '700x700mm',
-        manufacturer: '瓷都',
-        quantity: 50,
-        price_per_piece: 35.00,
-        subtotal: 1750.00,
-        adjusted_quantity: 50
-      }
-    ]
-  }
-];
-
-// 模拟售后记录数据
-const mockAftersaleLogs = [
-  {
-    id: 1,
-    order_id: 2,
-    aftersale_type: 1,
-    aftersale_status: 2,
-    items: [
-      {
-        order_item_id: 4,
-        quantity_change: -5,
-        amount_change: -175.00
-      }
-    ],
-    resolution_result: '客户部分退货',
-    aftersale_operator: 1,
-    create_time: '2025-03-02 14:15:00'
-  },
-  {
-    id: 2,
-    order_id: 3,
-    aftersale_type: 2,
-    aftersale_status: 2,
-    items: [
-      {
-        order_item_id: 5,
-        quantity_change: 10,
-        amount_change: 250.00
-      }
-    ],
-    resolution_result: '客户需要增加数量',
-    aftersale_operator: 2,
-    create_time: '2025-03-01 16:30:00'
-  }
-];
-
 // 获取订单详情
 const fetchOrderDetail = async (orderId: number) => {
   loading.value = true;
   noOrderFound.value = false;
 
   try {
-    // 在实际应用中，这里会通过API获取详细信息
-    // const response = await getOrderDetail(orderId);
-    // order.value = response.data;
+    const response = await getOrderDetail(orderId);
 
-    // 现在使用Mock数据模拟
-    setTimeout(() => {
-      const foundOrder = mockOrders.find(o => o.id === orderId);
+    if (response.data.code === 200) {
+      order.value = response.data.data;
 
-      if (foundOrder) {
-        order.value = foundOrder;
+      // 初始化售后表单
+      aftersaleForm.value = {
+        order_id: orderId,
+        aftersale_type: null,
+        aftersale_status: 1, // 默认为"新建"状态
+        resolution_result: '',
+        aftersale_operator: userStore.getUserInfo()?.id || 0,
+        items: []
+      };
 
-        // 初始化售后表单
-        aftersaleForm.value = {
-          order_id: orderId,
-          aftersale_type: null,
-          aftersale_status: 1, // 默认为"新建"状态
-          resolution_result: '',
-          aftersale_operator: foundOrder.operator_id,
-          items: []
-        };
+      // 初始化售后项目
+      aftersaleItems.value = order.value.items.map(item => ({
+        id: item.id,
+        model_number: item.model_number,
+        checked: false,
+        quantity: item.quantity,
+        currentQuantity: item.adjusted_quantity !== null ? item.adjusted_quantity : item.quantity,
+        quantity_change: 0,
+        price_per_piece: item.price_per_piece,
+        amount_change: 0
+      }));
 
-        // 初始化售后项目
-        aftersaleItems.value = foundOrder.items.map(item => ({
-          id: item.id,
-          model_number: item.model_number,
-          checked: false,
-          quantity: item.quantity,
-          currentQuantity: item.adjusted_quantity !== null ? item.adjusted_quantity : item.quantity,
-          quantity_change: 0,
-          price_per_piece: item.price_per_piece,
-          amount_change: 0
-        }));
-
-        // 获取历史售后记录
-        fetchAftersaleLogs(orderId);
-      } else {
-        noOrderFound.value = true;
-      }
-
-      loading.value = false;
-    }, 300);
+      // 获取历史售后记录
+      await fetchAftersaleLogs(orderId);
+    } else {
+      ElMessage.error(response.data.message || '获取订单详情失败');
+      noOrderFound.value = true;
+    }
   } catch (error) {
     console.error('获取订单详情失败:', error);
     ElMessage.error('获取订单详情失败');
-    loading.value = false;
     noOrderFound.value = true;
+  } finally {
+    loading.value = false;
   }
 };
 
 // 获取售后记录
-const fetchAftersaleLogs = (orderId: number) => {
+const fetchAftersaleLogs = async (orderId: number) => {
   aftersaleLogsLoading.value = true;
-
-  // 在实际应用中，这里会通过API获取售后记录
-  // const response = await getAftersaleLogs(orderId);
-  // aftersaleLogs.value = response.data;
-
-  // 现在使用Mock数据模拟
-  setTimeout(() => {
-    aftersaleLogs.value = mockAftersaleLogs.filter(log => log.order_id === orderId);
+  try {
+    const response = await getOrderAftersaleLogs(orderId);
+    if (response.data.code === 200) {
+      aftersaleLogs.value = response.data.data || [];
+      console.log('售后记录:', aftersaleLogs.value);
+    } else {
+      console.error('获取售后记录失败:', response.data.message);
+      aftersaleLogs.value = [];
+    }
+  } catch (error) {
+    console.error('获取售后记录失败:', error);
+    aftersaleLogs.value = [];
+  } finally {
     aftersaleLogsLoading.value = false;
-  }, 300);
+  }
 };
 
 // 切换售后类型
 const handleAftersaleTypeChange = () => {
   // 重置所有项目的数量变化和金额变化
   aftersaleItems.value.forEach(item => {
+    item.checked = false;
     item.quantity_change = 0;
     item.amount_change = 0;
   });
@@ -355,13 +198,11 @@ const totalAmountChange = computed(() => {
 });
 
 // 提交售后申请
-const saveAftersale = () => {
+const saveAftersale = async () => {
   if (!aftersaleForm.value.aftersale_type) {
     ElMessage.error('请选择售后类型');
     return;
   }
-
-
 
   if (!aftersaleForm.value.aftersale_operator) {
     ElMessage.error('请输入售后处理人ID');
@@ -402,7 +243,7 @@ const saveAftersale = () => {
   }));
 
   // 构建完整的售后数据
-  const aftersaleData: Aftersale = {
+  const aftersaleData = {
     order_id: aftersaleForm.value.order_id,
     aftersale_type: aftersaleForm.value.aftersale_type,
     aftersale_status: aftersaleForm.value.aftersale_status,
@@ -411,74 +252,37 @@ const saveAftersale = () => {
     items: aftersaleItemsData
   };
 
-  // 在实际项目中，这里应该调用API提交数据
-  // await createAftersale(aftersaleData);
+  try {
+    loading.value = true;
+    const response = await createAftersale(aftersaleData);
 
-  // 现在直接模拟更新本地数据
+    if (response.data.code === 200 || response.data.code === 201) {
+      ElMessage.success('售后申请提交成功');
 
-  // 找到对应的订单
-  const orderIndex = mockOrders.findIndex(o => o.id === aftersaleForm.value.order_id);
-  if (orderIndex !== -1) {
-    const currentOrder = mockOrders[orderIndex];
+      // 重新获取订单详情以更新状态
+      await fetchOrderDetail(aftersaleForm.value.order_id);
 
-    // 更新每个选中的订单项
-    for (const item of selectedItems) {
-      const itemIndex = currentOrder.items.findIndex(i => i.id === item.id);
-      if (itemIndex !== -1) {
-        const currentItem = currentOrder.items[itemIndex];
-        // 更新调整后数量
-        const currentQuantity = currentItem.adjusted_quantity !== null ? currentItem.adjusted_quantity : currentItem.quantity;
-        currentItem.adjusted_quantity = currentQuantity + item.quantity_change;
-      }
-    }
-
-    // 计算总的金额变化
-    const totalAmountChangeValue = selectedItems.reduce((sum, item) => sum + item.amount_change, 0);
-
-    // 更新订单的调整后金额
-    if (currentOrder.adjusted_amount === null) {
-      currentOrder.adjusted_amount = currentOrder.total_amount + totalAmountChangeValue;
+      // 重置表单
+      aftersaleForm.value.aftersale_type = null;
+      aftersaleForm.value.resolution_result = '';
+      aftersaleItems.value.forEach(item => {
+        item.checked = false;
+        item.quantity_change = 0;
+        item.amount_change = 0;
+      });
     } else {
-      currentOrder.adjusted_amount += totalAmountChangeValue;
+      ElMessage.error(response.data.message || '售后申请提交失败');
     }
-
-    // 更新订单的售后状态
-    currentOrder.aftersale_status = aftersaleForm.value.aftersale_status;
-
-    // 更新订单的更新时间
-    currentOrder.order_update_time = new Date().toISOString().replace('T', ' ').slice(0, 19);
-
-    // 创建一个新的售后记录
-    const newAftersaleLog: Aftersale = {
-      id: mockAftersaleLogs.length + 1,
-      ...aftersaleData,
-      create_time: new Date().toISOString().replace('T', ' ').slice(0, 19)
-    };
-
-    // 添加到模拟数据中
-    mockAftersaleLogs.push(newAftersaleLog);
-
-    // 刷新售后记录列表
-    fetchAftersaleLogs(currentOrder.id);
-
-    // 刷新当前订单
-    fetchOrderDetail(currentOrder.id);
-
-    ElMessage.success('售后申请提交成功');
-
-    // 重置表单
-    aftersaleForm.value.aftersale_type = null;
-    aftersaleForm.value.resolution_result = '';
-    aftersaleItems.value.forEach(item => {
-      item.checked = false;
-      item.quantity_change = 0;
-      item.amount_change = 0;
-    });
+  } catch (error) {
+    console.error('售后申请提交失败:', error);
+    ElMessage.error('售后申请提交失败');
+  } finally {
+    loading.value = false;
   }
 };
 
 const goBack = () => {
-  router.push({ name: 'order-list' }); // Use named route
+  router.push({ name: 'order-list' });
 };
 
 // 售后类型和状态映射
@@ -489,6 +293,35 @@ const aftersaleTypeMap = {
 
 const aftersaleStatusMap = {
   1: '新建',
+  2: '已解决'
+};
+
+// 处理已解决操作
+const handleMarkAsResolved = async (log: Aftersale) => {
+  // 确认是否将售后记录标记为已解决
+  ElMessageBox.confirm('确定要将此售后记录标记为已解决吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      // 调用API更新售后状态
+      const response = await updateAftersaleStatus(log.id!, 2);
+
+      if (response.data.code === 200) {
+        ElMessage.success('售后记录已成功标记为已解决');
+        // 重新获取订单详情以更新状态
+        await fetchOrderDetail(log.order_id);
+      } else {
+        ElMessage.error(response.data.message || '更新售后状态失败');
+      }
+    } catch (error) {
+      console.error('更新售后状态失败:', error);
+      ElMessage.error('更新售后状态失败');
+    }
+  }).catch(() => {
+    // 取消操作
+  });
 };
 
 // 监听路由参数变化
@@ -508,35 +341,6 @@ onMounted(() => {
     fetchOrderDetail(orderId);
   }
 });
-// 添加新的方法处理已解决操作
-const handleMarkAsResolved = (log: Aftersale) => {
-  // 确认是否将售后记录标记为已解决
-  ElMessageBox.confirm('确定要将此售后记录标记为已解决吗？', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    // 更新模拟数据中的售后记录状态
-    const logIndex = mockAftersaleLogs.findIndex(item => item.id === log.id);
-    if (logIndex !== -1) {
-      mockAftersaleLogs[logIndex].aftersale_status = 2;
-
-      // 更新对应订单的售后状态
-      const orderIndex = mockOrders.findIndex(order => order.id === log.order_id);
-      if (orderIndex !== -1) {
-        mockOrders[orderIndex].aftersale_status = 2;
-      }
-
-      // 刷新售后记录
-      fetchAftersaleLogs(log.order_id);
-      fetchOrderDetail(log.order_id);
-
-      ElMessage.success('售后记录已成功标记为已解决');
-    }
-  }).catch(() => {
-    // 取消操作
-  });
-};
 </script>
 
 <template>
@@ -593,13 +397,13 @@ const handleMarkAsResolved = (log: Aftersale) => {
                   <span class="label">售后状态:</span>
                   <span class="value">
                     <el-tag :type="order.aftersale_status ? (order.aftersale_status === 1 ? 'warning' : 'success') : 'info'">
-                      {{ order.aftersale_status ? aftersaleStatusMap[order.aftersale_status] : '无' }}
+                      {{ order.aftersale_status ? aftersaleStatusMap[order.aftersale_status as keyof typeof aftersaleStatusMap] : '无' }}
                     </el-tag>
                   </span>
                 </div>
                 <div class="info-item">
                   <span class="label">创建时间:</span>
-                  <span class="value">{{ new Date(order.order_create_time).toLocaleString() }}</span>
+                  <span class="value">{{ order.order_create_time }}</span>
                 </div>
               </div>
             </div>
@@ -623,7 +427,6 @@ const handleMarkAsResolved = (log: Aftersale) => {
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <!-- 售后基本信息栏中的状态选择修改 -->
                   <el-form-item label="售后状态" required>
                     <el-select
                         v-model="aftersaleForm.aftersale_status"
@@ -643,6 +446,7 @@ const handleMarkAsResolved = (log: Aftersale) => {
                         v-model.number="aftersaleForm.aftersale_operator"
                         placeholder="请输入处理人ID"
                         type="number"
+                        :disabled="true"
                     />
                   </el-form-item>
                 </el-col>

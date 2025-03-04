@@ -2,7 +2,7 @@
 import { ref, onMounted, nextTick, watch, onBeforeUnmount } from 'vue';
 import * as echarts from 'echarts';
 import { ElMessage } from 'element-plus';
-import { fetchTotalSalesAmount, fetchTodaySalesAmount, fetchSalesTrend, fetchTopProducts } from '@/api/order';
+import { fetchTotalSalesAmount, fetchTodaySalesAmount, fetchSalesTrend, fetchTopProducts } from '@/api/sales';
 import { useRoute } from 'vue-router';
 
 // 获取当前路由
@@ -26,8 +26,28 @@ const tableHeight = ref(300);
 // 获取销售趋势数据
 const fetchSalesData = async () => {
   try {
-    const response = await fetchSalesTrend();
-    salesData.value = response.data;
+    // 根据API文档，需要传入year, month, length参数
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+    const length = 6; // 获取6个月的数据
+
+    const response = await fetchSalesTrend(year, month, length);
+    if (response.data.code === 200) {
+      // 根据API文档中的响应格式解析数据
+      const apiData = response.data.data;
+      const dates = apiData.map((item: any) => item.dates);
+      const salesValues = apiData.map((item: any) => item.salesValues);
+      const amounts = apiData.map((item: any) => item.amounts);
+
+      salesData.value = {
+        dates,
+        salesValues,
+        amounts
+      };
+    } else {
+      throw new Error(response.data.message || '获取销售趋势数据失败');
+    }
   } catch (error) {
     console.error('获取销售趋势数据失败：', error);
     ElMessage.warning('无法获取销量趋势数据，已显示默认数据');
@@ -43,7 +63,12 @@ const fetchSalesData = async () => {
 const fetchTopProductsData = async () => {
   try {
     const response = await fetchTopProducts();
-    topProducts.value = response.data;
+    if (response.data.code === 200) {
+      // API返回的直接是一个数组
+      topProducts.value = response.data.data;
+    } else {
+      throw new Error(response.data.message || '获取最火爆卖品数据失败');
+    }
   } catch (error) {
     console.error('获取最火爆卖品数据失败：', error);
     ElMessage.warning('无法获取最火爆卖品数据，已显示默认数据');
@@ -147,7 +172,12 @@ watch(
 const loadAllData = async () => {
   try {
     const totalResponse = await fetchTotalSalesAmount();
-    totalSalesAmount.value = totalResponse.data.total_amount;
+    if (totalResponse.data.code === 200) {
+      // 根据API文档的响应结构
+      totalSalesAmount.value = totalResponse.data.data.total_sale_amount;
+    } else {
+      throw new Error(totalResponse.data.message || '获取总销售金额失败');
+    }
   } catch (error) {
     console.error('获取总销售金额失败：', error);
     ElMessage.warning('无法获取总销售金额，已显示默认数据');
@@ -156,7 +186,12 @@ const loadAllData = async () => {
 
   try {
     const todayResponse = await fetchTodaySalesAmount();
-    todaySalesAmount.value = todayResponse.data.today_amount;
+    if (todayResponse.data.code === 200) {
+      // 根据API文档的响应结构
+      todaySalesAmount.value = todayResponse.data.data.today_sale_amount;
+    } else {
+      throw new Error(todayResponse.data.message || '获取今日销售金额失败');
+    }
   } catch (error) {
     console.error('获取今日销售金额失败：', error);
     ElMessage.warning('无法获取今日销售金额，已显示默认数据');
@@ -270,6 +305,7 @@ onBeforeUnmount(() => {
 
 
 <style scoped>
+/* 样式保持不变 */
 .welcome-container {
   padding: 20px;
   height: 100%;
@@ -366,5 +402,4 @@ h3 {
     overflow: visible;
   }
 }
-
 </style>
