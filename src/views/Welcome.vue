@@ -26,17 +26,14 @@ const tableHeight = ref(300);
 // 获取销售趋势数据
 const fetchSalesData = async () => {
   try {
-    // 根据API文档，需要传入year, month, length参数
     const currentDate = new Date();
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth() + 1;
-    const length = 6; // 获取6个月的数据
+    const length = 6;
 
     const response = await fetchSalesTrend(year, month, length);
     if (response.data.code === 200) {
-      // 根据API文档中的响应格式解析数据
       const apiData = response.data.data;
-      // 确保数据按照日期正序排列
       apiData.sort((a: any, b: any) => new Date(a.dates).getTime() - new Date(b.dates).getTime());
       const dates = apiData.map((item: any) => item.dates);
       const salesValues = apiData.map((item: any) => item.salesValues);
@@ -48,16 +45,18 @@ const fetchSalesData = async () => {
         amounts
       };
     } else {
-      throw new Error(response.data.message || '获取销售趋势数据失败');
+      salesData.value = {
+        dates: [],
+        salesValues: [],
+        amounts: []
+      };
     }
   } catch (error) {
     console.error('获取销售趋势数据失败：', error);
-    ElMessage.warning('无法获取销量趋势数据，已显示默认数据');
-    // 修改默认数据，按照正确的时间顺序
     salesData.value = {
-      dates: ['2024-10', '2024-11', '2024-12', '2025-01', '2025-02', '2025-03'],
-      salesValues: [100, 90, 120, 133, 566, 600],
-      amounts: [9000, 7500, 23333, 12500, 123333, 150000],
+      dates: [],
+      salesValues: [],
+      amounts: []
     };
   }
 };
@@ -67,21 +66,13 @@ const fetchTopProductsData = async () => {
   try {
     const response = await fetchTopProducts();
     if (response.data.code === 200) {
-      // API返回的直接是一个数组
       topProducts.value = response.data.data;
     } else {
-      throw new Error(response.data.message || '获取最火爆卖品数据失败');
+      topProducts.value = [];
     }
   } catch (error) {
     console.error('获取最火爆卖品数据失败：', error);
-    ElMessage.warning('无法获取最火爆卖品数据，已显示默认数据');
-    topProducts.value = [
-      { model_number: 'MODEL-A', sales: 500 },
-      { model_number: 'MODEL-B', sales: 450 },
-      { model_number: 'MODEL-C', sales: 300 },
-      { model_number: 'MODEL-D', sales: 200 },
-      { model_number: 'MODEL-E', sales: 150 },
-    ];
+    topProducts.value = [];
   }
 };
 
@@ -176,29 +167,25 @@ const loadAllData = async () => {
   try {
     const totalResponse = await fetchTotalSalesAmount();
     if (totalResponse.data.code === 200) {
-      // 根据API文档的响应结构
       totalSalesAmount.value = totalResponse.data.data.total_sale_amount;
     } else {
-      throw new Error(totalResponse.data.message || '获取总销售金额失败');
+      totalSalesAmount.value = 0;
     }
   } catch (error) {
     console.error('获取总销售金额失败：', error);
-    ElMessage.warning('无法获取总销售金额，已显示默认数据');
-    totalSalesAmount.value = 150000;
+    totalSalesAmount.value = 0;
   }
 
   try {
     const todayResponse = await fetchTodaySalesAmount();
     if (todayResponse.data.code === 200) {
-      // 根据API文档的响应结构
       todaySalesAmount.value = todayResponse.data.data.today_sale_amount;
     } else {
-      throw new Error(todayResponse.data.message || '获取今日销售金额失败');
+      todaySalesAmount.value = 0;
     }
   } catch (error) {
     console.error('获取今日销售金额失败：', error);
-    ElMessage.warning('无法获取今日销售金额，已显示默认数据');
-    todaySalesAmount.value = 5000;
+    todaySalesAmount.value = 0;
   }
 
   await fetchSalesData();

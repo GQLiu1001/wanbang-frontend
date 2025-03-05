@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getInventoryLogs, updateInventoryLog, deleteInventoryLog } from '@/api/inventoryLog';
 import { useUserStore } from '@/stores/user';
@@ -41,6 +41,12 @@ const pickerOptions = {
 // 获取用户信息
 const userStore = useUserStore();
 const operatorId = userStore.getUserInfo()?.id;
+
+// 检查是否为admin角色
+const isAdmin = computed(() => {
+  const user = userStore.getUserInfo();
+  return user?.role_key === 'admin';
+});
 
 // Fetch inventory records from API（限定 operation_type=1）
 const fetchInventoryRecords = async () => {
@@ -221,7 +227,7 @@ const handleSizeChange = (newSize: number) => {
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-          <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          <el-button v-if="isAdmin" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>

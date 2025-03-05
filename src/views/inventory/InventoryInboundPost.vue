@@ -31,6 +31,8 @@ const loading = ref(false);
 const categoryOptions = [
   { label: '墙砖', value: 1 },
   { label: '地砖', value: 2 },
+  { label: '胶', value: 3 },
+  { label: '洁具', value: 4 }
 ];
 const surfaceOptions = [
   { label: '抛光', value: 1 },
@@ -52,11 +54,11 @@ const rules = reactive({
     { max: 50, message: '制造厂商不能超过50个字符', trigger: 'blur' }
   ],
   specification: [
-    { required: true, message: '请输入规格', trigger: 'blur' },
-    { pattern: /^[0-9]+x[0-9]+mm$/, message: '规格格式必须为数字x数字mm，如600x600mm', trigger: 'blur' }
+    { required: false, message: '请输入规格', trigger: 'blur' },
+    { pattern: /^[0-9]+x[0-9]+mm$/, message: '规格格式建议为数字x数字mm，如600x600mm', trigger: 'blur' }
   ],
   surface: [
-    { required: true, message: '请选择表面处理', trigger: 'change' }
+    { required: false, message: '请选择表面处理', trigger: 'change' }
   ],
   category: [
     { required: true, message: '请选择产品分类', trigger: 'change' }
@@ -152,6 +154,26 @@ const totalBoxes = computed(() => {
   }
   return Math.ceil(formData.value.total_pieces / formData.value.pieces_per_box);
 });
+
+// 计算属性：是否显示规格和表面处理字段
+const showSpecificationAndSurface = computed(() => {
+  return [1, 2].includes(formData.value.category || 0);
+});
+
+// 计算属性：是否显示每箱片数字段
+const showPiecesPerBox = computed(() => {
+  return [1, 2].includes(formData.value.category || 0);
+});
+
+// 计算属性：总数量的标签文本
+const totalLabel = computed(() => {
+  return [1, 2].includes(formData.value.category || 0) ? '总片数' : '总个数';
+});
+
+// 计算属性：单价的标签文本
+const priceLabel = computed(() => {
+  return [1, 2].includes(formData.value.category || 0) ? '单片价格' : '单个价格';
+});
 </script>
 
 <template>
@@ -181,21 +203,7 @@ const totalBoxes = computed(() => {
       </el-row>
 
       <el-row :gutter="20">
-        <el-col :span="12">
-          <el-form-item label="规格" prop="specification">
-            <el-input v-model="formData.specification" placeholder="请输入规格（如600x600mm）" />
-            <div class="form-tip">格式：宽x高mm，例如：600x600mm</div>
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="仓库编码" prop="warehouse_num">
-            <el-input v-model.number="formData.warehouse_num" placeholder="请输入仓库编码" type="number" min="1" />
-          </el-form-item>
-        </el-col>
-      </el-row>
-
-      <el-row :gutter="20">
-        <el-col :span="12">
+        <el-col :span="24">
           <el-form-item label="产品分类" prop="category">
             <el-radio-group v-model="formData.category">
               <el-radio
@@ -207,6 +215,15 @@ const totalBoxes = computed(() => {
                 {{ item.label }}
               </el-radio>
             </el-radio-group>
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="20" v-if="showSpecificationAndSurface">
+        <el-col :span="12">
+          <el-form-item label="规格" prop="specification">
+            <el-input v-model="formData.specification" placeholder="请输入规格（如600x600mm）" />
+            <div class="form-tip">格式：宽x高mm，例如：600x600mm</div>
           </el-form-item>
         </el-col>
         <el-col :span="12">
@@ -226,21 +243,29 @@ const totalBoxes = computed(() => {
       </el-row>
 
       <el-row :gutter="20">
-        <el-col :span="8">
-          <el-form-item label="总片数" prop="total_pieces">
-            <el-input v-model.number="formData.total_pieces" placeholder="请输入总片数" type="number" min="1" />
+        <el-col :span="12">
+          <el-form-item label="仓库编码" prop="warehouse_num">
+            <el-input v-model.number="formData.warehouse_num" placeholder="请输入仓库编码" type="number" min="1" />
           </el-form-item>
         </el-col>
-        <el-col :span="8">
+      </el-row>
+
+      <el-row :gutter="20">
+        <el-col :span="showPiecesPerBox ? 8 : 12">
+          <el-form-item :label="totalLabel" prop="total_pieces">
+            <el-input v-model.number="formData.total_pieces" :placeholder="'请输入' + totalLabel" type="number" min="1" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8" v-if="showPiecesPerBox">
           <el-form-item label="每箱片数" prop="pieces_per_box">
             <el-input v-model.number="formData.pieces_per_box" placeholder="请输入每箱片数" type="number" min="1" />
           </el-form-item>
         </el-col>
-        <el-col :span="8">
-          <el-form-item label="单片价格" prop="price_per_piece">
+        <el-col :span="showPiecesPerBox ? 8 : 12">
+          <el-form-item :label="priceLabel" prop="price_per_piece">
             <el-input
                 v-model.number="formData.price_per_piece"
-                placeholder="请输入单片价格"
+                :placeholder="'请输入' + priceLabel"
                 type="number"
                 step="0.01"
                 min="0"
@@ -268,19 +293,19 @@ const totalBoxes = computed(() => {
           <div class="summary-info">
             <div class="summary-title">入库信息摘要</div>
             <div class="summary-item">
-              <span class="label">总片数:</span>
+              <span class="label">{{ totalLabel }}:</span>
               <span class="value">{{ formData.total_pieces || '未设置' }}</span>
             </div>
-            <div class="summary-item">
+            <div class="summary-item" v-if="showPiecesPerBox">
               <span class="label">每箱片数:</span>
               <span class="value">{{ formData.pieces_per_box || '未设置' }}</span>
             </div>
-            <div class="summary-item">
+            <div class="summary-item" v-if="showPiecesPerBox">
               <span class="label">总箱数:</span>
               <span class="value">{{ totalBoxes }}</span>
             </div>
             <div class="summary-item">
-              <span class="label">单价:</span>
+              <span class="label">{{ priceLabel }}:</span>
               <span class="value">{{ formData.price_per_piece ? `¥${formData.price_per_piece.toFixed(2)}` : '未设置' }}</span>
             </div>
             <div class="summary-item">
@@ -320,6 +345,8 @@ h1 {
 
 .radio-item {
   margin-right: 16px;
+  margin-bottom: 8px;
+  display: inline-block;
 }
 
 .form-tip {

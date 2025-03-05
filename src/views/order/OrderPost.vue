@@ -1,6 +1,6 @@
 <!--创建订单-->
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, reactive } from 'vue';
 import { ElMessage } from 'element-plus';
 import { postOrder } from '@/api/order';
 import { useUserStore } from '@/stores/user';
@@ -22,6 +22,9 @@ interface OrderItemForm {
   price_difference: number | null;
   total_pieces?: number;
   source_warehouse?: number;
+  category: number;
+  specification?: string;
+  surface?: number;
 }
 
 // 订单主表单数据
@@ -41,7 +44,8 @@ const orderItems = ref<OrderItemForm[]>([
     price_per_piece: null,
     subtotal: null,
     original_subtotal: null,
-    price_difference: null
+    price_difference: null,
+    category: 0
   }
 ]);
 
@@ -91,7 +95,8 @@ const addOrderItem = () => {
     price_per_piece: null,
     subtotal: null,
     original_subtotal: null,
-    price_difference: null
+    price_difference: null,
+    category: 0
   });
 };
 
@@ -117,11 +122,17 @@ const handleModelNumberChange = async (index: number) => {
         item.item_id = inventoryData.item_id;
         item.total_pieces = inventoryData.total_pieces;
         item.source_warehouse = 1; // 默认设置为1号仓库，您可以根据实际需求修改
+        item.category = inventoryData.category;
+        item.specification = inventoryData.specification;
+        item.surface = inventoryData.surface;
       } else {
         ElMessage.warning('未找到对应的库存信息');
         item.item_id = null;
         item.total_pieces = undefined;
         item.source_warehouse = undefined;
+        item.category = 0;
+        item.specification = undefined;
+        item.surface = undefined;
       }
     } catch (error) {
       console.error('获取库存信息失败:', error);
@@ -129,6 +140,9 @@ const handleModelNumberChange = async (index: number) => {
       item.item_id = null;
       item.total_pieces = undefined;
       item.source_warehouse = undefined;
+      item.category = 0;
+      item.specification = undefined;
+      item.surface = undefined;
     }
   }
 };
@@ -172,6 +186,17 @@ const submitOrder = async () => {
         ElMessage.error(`第${i + 1}项商品的单价必须大于0`);
         return;
       }
+
+      if ([1, 2].includes(item.category)) {
+        if (!item.specification) {
+          ElMessage.error(`第${i + 1}项商品必须填写规格`);
+          return;
+        }
+        if (!item.surface) {
+          ElMessage.error(`第${i + 1}项商品必须选择表面处理`);
+          return;
+        }
+      }
     }
 
     // 准备提交数据
@@ -186,7 +211,10 @@ const submitOrder = async () => {
         quantity: Number(item.quantity),
         price_per_piece: Number(item.price_per_piece),
         subtotal: Number(item.subtotal),
-        source_warehouse: item.source_warehouse || 1 // 确保有值
+        source_warehouse: item.source_warehouse || 1, // 确保有值
+        category: item.category,
+        specification: item.specification,
+        surface: item.surface
       }))
     };
 
@@ -221,9 +249,36 @@ const resetForm = () => {
     price_per_piece: null,
     subtotal: null,
     original_subtotal: null,
-    price_difference: null
+    price_difference: null,
+    category: 0
   }];
 };
+
+// 更新产品分类选项
+const categoryOptions = [
+  { label: '墙砖', value: 1 },
+  { label: '地砖', value: 2 },
+  { label: '胶', value: 3 },
+  { label: '地漏', value: 4 },
+  { label: '洁具', value: 5 }
+];
+
+// 修改表单验证规则
+const rules = reactive({
+  // ... 其他规则保持不变
+  specification: [
+    { required: false, message: '请输入规格', trigger: 'blur' },
+    { pattern: /^[0-9]+x[0-9]+mm$/, message: '规格格式建议为数字x数字mm，如600x600mm', trigger: 'blur' }
+  ],
+  surface: [
+    { required: false, message: '请选择表面处理', trigger: 'change' }
+  ]
+});
+
+// 动态显示规格和表面处理字段
+const showSpecificationAndSurface = computed(() => {
+  return [1, 2].includes(orderForm.value.category);
+});
 </script>
 
 <template>

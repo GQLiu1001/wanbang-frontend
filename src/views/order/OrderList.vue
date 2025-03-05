@@ -1,7 +1,7 @@
 <!--订单列表-->
 <!--订单列表-->
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { getOrders, getOrderDetail, updateOrder, updateOrderItem, addOrderItem, deleteOrderItem, deleteOrder } from '@/api/order';
@@ -11,6 +11,12 @@ import { getInventoryByModelNumber } from '@/api/inventory';
 // 获取用户信息
 const userStore = useUserStore();
 const operatorId = userStore.getUserInfo()?.id;
+
+// 检查是否为admin角色
+const isAdmin = computed(() => {
+  const user = userStore.getUserInfo();
+  return user?.role_key === 'admin';
+});
 
 // 订单项类型
 interface OrderItem {
@@ -623,7 +629,7 @@ onMounted(() => {
           <el-button type="primary" size="small" @click="handleViewDetail(row)">详情</el-button>
           <el-button type="success" size="small" @click="handleAftersale(row)">售后</el-button>
           <el-button type="warning" size="small" @click="handleEditOrder(row)">编辑订单</el-button>
-          <el-button type="danger" size="small" @click="handleDeleteOrder(row)">删除订单</el-button>
+          <el-button v-if="isAdmin" type="danger" size="small" @click="handleDeleteOrder(row)">删除订单</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -715,7 +721,7 @@ onMounted(() => {
           <el-table-column label="操作" width="180">
             <template #default="{ row }">
               <el-button type="warning" size="small" @click="handleEditItem(row)">编辑</el-button>
-              <el-button type="danger" size="small" @click="handleDeleteItem(row)">删除</el-button>
+              <el-button v-if="isAdmin" type="danger" size="small" @click="handleDeleteItem(row)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>

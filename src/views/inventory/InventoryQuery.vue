@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getInventoryItems, updateInventoryItem, deleteInventoryItem } from '@/api/inventory';
 import type { InventoryItem, InventoryQueryParams } from '@/types/interfaces.ts';
@@ -40,6 +40,8 @@ const editForm = ref<InventoryItem>({
 const categoryOptions = [
   { label: '墙砖', value: 1 },
   { label: '地砖', value: 2 },
+  { label: '胶', value: 3 },
+  { label: '洁具', value: 4 }
 ];
 const surfaceOptions = [
   { label: '抛光', value: 1 },
@@ -83,6 +85,33 @@ const formRules = reactive({
     { type: 'number', min: 0, message: '单片价格不能小于0', trigger: 'blur' }
   ]
 });
+
+// 计算属性：根据分类显示不同的单位
+const getUnitLabel = (category: number) => {
+  return [1, 2].includes(category) ? '片' : '个';
+};
+
+// 计算属性：总数量的标签文本
+const totalLabel = computed(() => {
+  return [1, 2].includes(editForm.value.category) ? '总片数' : '总个数';
+});
+
+// 计算属性：每箱数量的标签文本
+const boxLabel = computed(() => {
+  return [1, 2].includes(editForm.value.category) ? '每箱片数' : '每箱个数';
+});
+
+// 计算属性：单价的标签文本
+const priceLabel = computed(() => {
+  return [1, 2].includes(editForm.value.category) ? '单片价格' : '单个价格';
+});
+
+// 计算属性：表格列标题
+const columnLabels = computed(() => ({
+  total: `总${getUnitLabel(category.value || 0)}数`,
+  box: `每箱${getUnitLabel(category.value || 0)}数`,
+  price: `单${getUnitLabel(category.value || 0)}价格`
+}));
 
 // 搜索函数（匹配接口 /api/inventory/items）
 const performSearch = async () => {
@@ -280,13 +309,26 @@ performSearch();
           </template>
         </el-table-column>
         <el-table-column prop="warehouse_num" label="仓库编码" width="100" />
-        <el-table-column prop="total_pieces" label="总片数" width="100">
+        <el-table-column prop="total_pieces" width="100">
+          <template #header>
+            总{{ [1, 2].includes(category || 0) ? '片' : '个' }}数
+          </template>
           <template #default="{ row }">
             {{ row.total_pieces.toLocaleString() }}
           </template>
         </el-table-column>
-        <el-table-column prop="pieces_per_box" label="每箱片数" width="100" />
-        <el-table-column prop="price_per_piece" label="单片价格" width="120">
+        <el-table-column prop="pieces_per_box" width="100">
+          <template #header>
+            每箱{{ [1, 2].includes(category || 0) ? '片' : '个' }}数
+          </template>
+          <template #default="{ row }">
+            {{ row.pieces_per_box }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="price_per_piece" width="120">
+          <template #header>
+            单{{ [1, 2].includes(category || 0) ? '片' : '个' }}价格
+          </template>
           <template #default="{ row }">
             ¥{{ row.price_per_piece.toFixed(2) }}
           </template>
@@ -342,13 +384,13 @@ performSearch();
             <el-input v-model.number="editForm.warehouse_num" type="number" disabled />
             <div class="form-tip">仓库编码不可修改</div>
           </el-form-item>
-          <el-form-item label="总片数" prop="total_pieces">
+          <el-form-item :label="totalLabel" prop="total_pieces">
             <el-input v-model.number="editForm.total_pieces" type="number" min="0" />
           </el-form-item>
-          <el-form-item label="每箱片数" prop="pieces_per_box">
+          <el-form-item :label="boxLabel" prop="pieces_per_box">
             <el-input v-model.number="editForm.pieces_per_box" type="number" min="1" />
           </el-form-item>
-          <el-form-item label="单片价格" prop="price_per_piece">
+          <el-form-item :label="priceLabel" prop="price_per_piece">
             <el-input v-model.number="editForm.price_per_piece" type="number" min="0" step="0.01">
               <template #prefix>¥</template>
             </el-input>

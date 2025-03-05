@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getInventoryLogs, updateInventoryLog, deleteInventoryLog } from '@/api/inventoryLog';
 import { useUserStore } from '@/stores/user';
@@ -8,6 +8,7 @@ import type { InventoryLog, LogQueryParams } from '@/types/interfaces.ts';
 // 获取用户信息
 const userStore = useUserStore();
 const operatorId = userStore.getUserInfo()?.id;
+const isAdmin = computed(() => userStore.getUserInfo()?.role_key === 'admin');
 
 // Mocked fallback data（与 inventory_log 表字段一致）
 const mockRecord: InventoryLog = {
