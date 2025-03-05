@@ -36,6 +36,8 @@ const fetchSalesData = async () => {
     if (response.data.code === 200) {
       // 根据API文档中的响应格式解析数据
       const apiData = response.data.data;
+      // 确保数据按照日期正序排列
+      apiData.sort((a: any, b: any) => new Date(a.dates).getTime() - new Date(b.dates).getTime());
       const dates = apiData.map((item: any) => item.dates);
       const salesValues = apiData.map((item: any) => item.salesValues);
       const amounts = apiData.map((item: any) => item.amounts);
@@ -51,10 +53,11 @@ const fetchSalesData = async () => {
   } catch (error) {
     console.error('获取销售趋势数据失败：', error);
     ElMessage.warning('无法获取销量趋势数据，已显示默认数据');
+    // 修改默认数据，按照正确的时间顺序
     salesData.value = {
-      dates: ['2024-09', '2024-10', '2024-11', '2024-12', '2025-01'],
-      salesValues: [100, 90, 120, 133, 566],
-      amounts: [9000, 7500, 23333, 12500, 123333],
+      dates: ['2024-10', '2024-11', '2024-12', '2025-01', '2025-02', '2025-03'],
+      salesValues: [100, 90, 120, 133, 566, 600],
+      amounts: [9000, 7500, 23333, 12500, 123333, 150000],
     };
   }
 };

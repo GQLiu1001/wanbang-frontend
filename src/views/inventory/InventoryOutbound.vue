@@ -2,7 +2,12 @@
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getInventoryLogs, updateInventoryLog, deleteInventoryLog } from '@/api/inventoryLog';
+import { useUserStore } from '@/stores/user';
 import type { InventoryLog, LogQueryParams } from '@/types/interfaces.ts';
+
+// 获取用户信息
+const userStore = useUserStore();
+const operatorId = userStore.getUserInfo()?.id;
 
 // Mocked fallback data（与 inventory_log 表字段一致）
 const mockRecord: InventoryLog = {
@@ -90,6 +95,8 @@ onMounted(() => {
 // Edit record（匹配接口 /api/inventory/logs/{id}）
 const handleEdit = (row: InventoryLog) => {
   editForm.value = { ...row };
+  // 设置操作人ID为当前用户ID
+  editForm.value.operator_id = operatorId;
   editDialogVisible.value = true;
 };
 
@@ -104,7 +111,7 @@ const saveEdit = async () => {
       inventory_item_id: editForm.value.inventory_item_id,
       operation_type: editForm.value.operation_type,
       quantity_change: editForm.value.quantity_change,
-      operator_id: editForm.value.operator_id,
+      operator_id: operatorId,
       source_warehouse: editForm.value.source_warehouse,
       target_warehouse: editForm.value.target_warehouse,
       remark: editForm.value.remark,
@@ -258,7 +265,7 @@ const clearFilter = () => {
           />
         </el-form-item>
         <el-form-item label="操作人ID">
-          <el-input v-model.number="editForm.operator_id" type="number" />
+          <el-input v-model.number="editForm.operator_id" type="number" disabled />
         </el-form-item>
         <el-form-item label="源仓库编码">
           <el-input v-model.number="editForm.source_warehouse" type="number" />

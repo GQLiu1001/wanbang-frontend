@@ -16,3 +16,8 @@ export const updateInventoryItem = (id: number, inventoryModel: InventoryItem) =
 export const deleteInventoryItem = (id: number) => {
     return axios.delete(`/inventory/items/${id}`);
 };
+
+// 根据产品型号查询库存信息
+export const getInventoryByModelNumber = (modelNumber: string) => {
+    return axios.get(`/inventory/items/model/${modelNumber}`);
+};

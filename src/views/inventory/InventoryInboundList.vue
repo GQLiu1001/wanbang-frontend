@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getInventoryLogs, updateInventoryLog, deleteInventoryLog } from '@/api/inventoryLog';
+import { useUserStore } from '@/stores/user';
 import type { InventoryLog, LogQueryParams } from '@/types/interfaces.ts';
 
 // Store inventory records and search state
@@ -36,6 +37,10 @@ const pickerOptions = {
     return time.getFullYear() < tenYearsAgo || time.getFullYear() > tenYearsLater;
   },
 };
+
+// 获取用户信息
+const userStore = useUserStore();
+const operatorId = userStore.getUserInfo()?.id;
 
 // Fetch inventory records from API（限定 operation_type=1）
 const fetchInventoryRecords = async () => {
@@ -80,6 +85,8 @@ onMounted(() => {
 // Edit record
 const handleEdit = (row: InventoryLog) => {
   editForm.value = { ...row };
+  // 设置操作人ID为当前用户ID
+  editForm.value.operator_id = operatorId;
   editDialogVisible.value = true;
 };
 
@@ -89,7 +96,7 @@ const saveEdit = async () => {
     const updateData = {
       id: editForm.value.id,
       inventory_item_id: editForm.value.inventory_item_id,
-      operator_id: editForm.value.operator_id,
+      operator_id: operatorId,
       operation_type: 1, // 固定为入库
       source_warehouse: editForm.value.source_warehouse,
       target_warehouse: editForm.value.target_warehouse,
@@ -241,13 +248,21 @@ const handleSizeChange = (newSize: number) => {
           <el-input v-model.number="editForm.inventory_item_id" disabled />
         </el-form-item>
         <el-form-item label="数量变化">
-          <el-input v-model.number="editForm.quantity_change" type="number" />
+          <el-input
+              v-model.number="editForm.quantity_change"
+              type="number"
+              :min="1"
+              placeholder="请输入正数"
+          />
         </el-form-item>
         <el-form-item label="操作人ID">
-          <el-input v-model.number="editForm.operator_id" type="number" />
+          <el-input v-model.number="editForm.operator_id" type="number" disabled />
         </el-form-item>
         <el-form-item label="源仓库编码">
           <el-input v-model.number="editForm.source_warehouse" type="number" />
+        </el-form-item>
+        <el-form-item label="目标仓库编码">
+          <el-input v-model.number="editForm.target_warehouse" type="number" />
         </el-form-item>
         <el-form-item label="操作备注">
           <el-input v-model="editForm.remark" type="textarea" />

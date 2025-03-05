@@ -5,6 +5,12 @@ import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { getOrders, getOrderDetail, updateOrder, updateOrderItem, addOrderItem, deleteOrderItem, deleteOrder } from '@/api/order';
+import { useUserStore } from '@/stores/user';
+import { getInventoryByModelNumber } from '@/api/inventory';
+
+// 获取用户信息
+const userStore = useUserStore();
+const operatorId = userStore.getUserInfo()?.id;
 
 // 订单项类型
 interface OrderItem {
@@ -68,7 +74,9 @@ const editItemForm = ref({
   id: 0,
   quantity: 0,
   price_per_piece: 0,
-  subtotal: 0
+  subtotal: 0,
+  original_subtotal: 0,
+  price_difference: 0
 });
 
 // 添加订单项对话框
@@ -77,11 +85,13 @@ const addItemForm = ref({
   order_id: 0,
   item_id: null as number | null,
   model_number: '',
-  specification: '',
-  manufacturer: '',
   quantity: null as number | null,
   price_per_piece: null as number | null,
-  subtotal: 0
+  subtotal: 0,
+  original_subtotal: 0,
+  price_difference: 0,
+  total_pieces: undefined as number | undefined,
+  source_warehouse: 1
 });
 
 // 日期选择器选项
@@ -200,7 +210,7 @@ const handleEditOrder = (order: Order) => {
   editOrderForm.value = {
     id: order.id,
     customer_phone: order.customer_phone,
-    operator_id: order.operator_id,
+    operator_id: operatorId,
     order_remark: order.order_remark || ''
   };
   editOrderDialogVisible.value = true;
@@ -218,16 +228,11 @@ const saveOrderEdit = async () => {
     return;
   }
 
-  if (!editOrderForm.value.operator_id) {
-    ElMessage.error('操作人ID不能为空');
-    return;
-  }
-
   try {
     const orderId = editOrderForm.value.id;
     const orderData = {
       customer_phone: editOrderForm.value.customer_phone,
-      operator_id: editOrderForm.value.operator_id,
+      operator_id: operatorId,
       order_remark: editOrderForm.value.order_remark
     };
 
@@ -253,7 +258,9 @@ const handleEditItem = (item: OrderItem) => {
     id: item.id,
     quantity: item.quantity,
     price_per_piece: item.price_per_piece,
-    subtotal: item.subtotal
+    subtotal: item.subtotal,
+    original_subtotal: item.quantity * item.price_per_piece,
+    price_difference: 0
   };
   editOrderItemDialogVisible.value = true;
 };
@@ -261,7 +268,21 @@ const handleEditItem = (item: OrderItem) => {
 // 更新小计金额
 const updateSubtotal = () => {
   if (editItemForm.value.quantity && editItemForm.value.price_per_piece) {
-    editItemForm.value.subtotal = Number((editItemForm.value.quantity * editItemForm.value.price_per_piece).toFixed(2));
+    // 计算原始小计
+    editItemForm.value.original_subtotal = Number((editItemForm.value.quantity * editItemForm.value.price_per_piece).toFixed(2));
+    // 如果还没有手动修改过小计，则使用原始小计
+    if (!editItemForm.value.subtotal) {
+      editItemForm.value.subtotal = editItemForm.value.original_subtotal;
+    }
+    // 计算差价
+    editItemForm.value.price_difference = Number((editItemForm.value.subtotal - editItemForm.value.original_subtotal).toFixed(2));
+  }
+};
+
+// 监听小计变化
+const handleSubtotalChange = () => {
+  if (editItemForm.value.subtotal !== null && editItemForm.value.original_subtotal !== null) {
+    editItemForm.value.price_difference = Number((editItemForm.value.subtotal - editItemForm.value.original_subtotal).toFixed(2));
   }
 };
 
@@ -310,17 +331,42 @@ const saveItemEdit = async () => {
   }
 };
 
+// 监听产品型号变化
+const handleModelNumberChange = async () => {
+  if (addItemForm.value.model_number) {
+    try {
+      const response = await getInventoryByModelNumber(addItemForm.value.model_number);
+      if (response.data.code === 200 && response.data.data) {
+        const inventoryData = response.data.data;
+        addItemForm.value.item_id = inventoryData.item_id;
+        addItemForm.value.total_pieces = inventoryData.total_pieces;
+      } else {
+        ElMessage.warning('未找到对应的库存信息');
+        addItemForm.value.item_id = null;
+        addItemForm.value.total_pieces = undefined;
+      }
+    } catch (error) {
+      console.error('获取库存信息失败:', error);
+      ElMessage.error('获取库存信息失败');
+      addItemForm.value.item_id = null;
+      addItemForm.value.total_pieces = undefined;
+    }
+  }
+};
+
 // 添加订单项
 const handleAddItem = (order: Order) => {
   addItemForm.value = {
     order_id: order.id,
     item_id: null,
     model_number: '',
-    specification: '',
-    manufacturer: '',
     quantity: null,
     price_per_piece: null,
-    subtotal: 0
+    subtotal: 0,
+    original_subtotal: 0,
+    price_difference: 0,
+    total_pieces: undefined,
+    source_warehouse: 1
   };
   addOrderItemDialogVisible.value = true;
 };
@@ -328,7 +374,24 @@ const handleAddItem = (order: Order) => {
 // 更新添加项的小计金额
 const updateAddItemSubtotal = () => {
   if (addItemForm.value.quantity && addItemForm.value.price_per_piece) {
-    addItemForm.value.subtotal = Number((addItemForm.value.quantity * addItemForm.value.price_per_piece).toFixed(2));
+    // 计算小计
+    const calculatedSubtotal = Number((addItemForm.value.quantity * addItemForm.value.price_per_piece).toFixed(2));
+    addItemForm.value.subtotal = calculatedSubtotal;
+    addItemForm.value.original_subtotal = calculatedSubtotal;
+    // 重置差价
+    addItemForm.value.price_difference = 0;
+  }
+};
+
+// 监听添加项小计变化
+const handleAddItemSubtotalChange = () => {
+  if (addItemForm.value.subtotal !== null && addItemForm.value.original_subtotal !== null) {
+    // 只有当手动输入的小计与原始计算的小计不同时，才计算并显示差价
+    if (addItemForm.value.subtotal !== addItemForm.value.original_subtotal) {
+      addItemForm.value.price_difference = Number((addItemForm.value.subtotal - addItemForm.value.original_subtotal).toFixed(2));
+    } else {
+      addItemForm.value.price_difference = 0;
+    }
   }
 };
 
@@ -680,8 +743,9 @@ onMounted(() => {
         <el-form-item label="操作人ID" required>
           <el-input
               v-model.number="editOrderForm.operator_id"
-              placeholder="请输入操作人ID"
+              placeholder="系统自动获取"
               type="number"
+              disabled
           />
         </el-form-item>
         <el-form-item label="订单备注">
@@ -746,11 +810,22 @@ onMounted(() => {
         <el-form-item label="小计">
           <el-input
               v-model.number="editItemForm.subtotal"
-              disabled
+              placeholder="请输入小计金额"
               type="number"
-              step="0.01"
+              :min="0"
+              :step="0.01"
+              @input="handleSubtotalChange"
           />
         </el-form-item>
+        <div v-if="editItemForm.price_difference !== 0" class="price-difference-info">
+          <span :class="{ 
+            'price-difference': true,
+            'positive': editItemForm.price_difference > 0,
+            'negative': editItemForm.price_difference < 0
+          }">
+            差价: {{ editItemForm.price_difference > 0 ? '+' : '' }}{{ editItemForm.price_difference.toFixed(2) }} 元
+          </span>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="editOrderItemDialogVisible = false">取消</el-button>
@@ -768,45 +843,37 @@ onMounted(() => {
       <el-form :model="addItemForm" label-width="120px">
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="库存商品ID" required>
-              <el-input
-                  v-model.number="addItemForm.item_id"
-                  placeholder="请输入库存商品ID"
-                  type="number"
-                  :min="1"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="产品型号" required>
               <el-input
                   v-model="addItemForm.model_number"
                   placeholder="请输入产品型号"
+                  @change="handleModelNumberChange"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="库存商品ID" required>
+              <el-input
+                  v-model.number="addItemForm.item_id"
+                  placeholder="自动获取"
+                  type="number"
+                  disabled
               />
             </el-form-item>
           </el-col>
         </el-row>
 
         <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="规格" required>
+          <el-col :span="8">
+            <el-form-item label="现有库存">
               <el-input
-                  v-model="addItemForm.specification"
-                  placeholder="请输入规格，如：600x600mm"
+                  v-model.number="addItemForm.total_pieces"
+                  placeholder="自动获取"
+                  type="number"
+                  disabled
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="制造商" required>
-              <el-input
-                  v-model="addItemForm.manufacturer"
-                  placeholder="请输入制造商"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="数量" required>
               <el-input
@@ -830,15 +897,31 @@ onMounted(() => {
               />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+        </el-row>
+
+        <el-row :gutter="20">
+          <el-col :span="24">
             <el-form-item label="小计">
               <el-input
                   v-model.number="addItemForm.subtotal"
-                  disabled
+                  placeholder="请输入小计金额"
                   type="number"
-                  step="0.01"
+                  :min="0"
+                  :step="0.01"
+                  @input="handleAddItemSubtotalChange"
               />
             </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row v-if="addItemForm.price_difference !== 0">
+          <el-col :span="24" class="text-right">
+            <span :class="{ 
+              'price-difference': true,
+              'positive': addItemForm.price_difference > 0,
+              'negative': addItemForm.price_difference < 0
+            }">
+              差价: {{ addItemForm.price_difference > 0 ? '+' : '' }}{{ addItemForm.price_difference.toFixed(2) }} 元
+            </span>
           </el-col>
         </el-row>
       </el-form>
@@ -912,5 +995,23 @@ onMounted(() => {
 .info-row .value {
   flex: 1;
   color: #303133;
+}
+
+.price-difference-info {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.price-difference {
+  color: #f56c6c;
+}
+
+.positive {
+  color: #67c23a;
+}
+
+.negative {
+  color: #f56c6c;
 }
 </style>

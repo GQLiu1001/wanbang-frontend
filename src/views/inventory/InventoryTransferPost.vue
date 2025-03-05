@@ -2,12 +2,17 @@
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { postTransferLog } from '@/api/inventoryLog';
+import { useUserStore } from '@/stores/user';
 import type { TransferLogRequest } from '@/types/interfaces.ts';
+
+// 获取用户信息
+const userStore = useUserStore();
+const operatorId = userStore.getUserInfo()?.id;
 
 // Form data
 const formData = ref<TransferLogRequest>({
   inventory_item_id: undefined,
-  operator_id: undefined,
+  operator_id: operatorId,
   source_warehouse: undefined,
   target_warehouse: undefined,
   remark: '',
@@ -19,7 +24,6 @@ const submitTransfer = async () => {
     // Validate required fields
     const requiredFields = {
       inventory_item_id: '库存项ID',
-      operator_id: '操作员ID',
       source_warehouse: '源仓库',
       target_warehouse: '目标仓库',
     };
@@ -37,6 +41,9 @@ const submitTransfer = async () => {
       ElMessage.error('源仓库和目标仓库不能相同');
       return;
     }
+
+    // 确保使用当前用户ID
+    formData.value.operator_id = operatorId;
 
     // API call
     const response = await postTransferLog(formData.value);
@@ -57,7 +64,7 @@ const submitTransfer = async () => {
 const resetForm = () => {
   formData.value = {
     inventory_item_id: undefined,
-    operator_id: undefined,
+    operator_id: operatorId,
     source_warehouse: undefined,
     target_warehouse: undefined,
     remark: '',
@@ -88,9 +95,9 @@ const resetForm = () => {
           <el-form-item label="操作员ID" required>
             <el-input
                 v-model.number="formData.operator_id"
-                placeholder="请输入操作员ID"
+                placeholder="系统自动获取"
                 type="number"
-                min="1"
+                disabled
             />
           </el-form-item>
         </el-col>
