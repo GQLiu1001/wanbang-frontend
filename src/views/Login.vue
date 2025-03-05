@@ -184,7 +184,7 @@ const handleLogin = async () => {
         username: userData.username,
         avatar: userData.avatar || '',
         phone: userData.phone || '',
-        role_key: userData.roleKey || '', // 确保 role_key 被保存
+        role_key: userData.role_key || '',
       });
 
       // 验证保存是否成功

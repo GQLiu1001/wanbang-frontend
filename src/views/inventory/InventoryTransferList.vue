@@ -74,6 +74,15 @@ const isAdmin = computed(() => {
   return user?.role_key === 'admin';
 });
 
+// 添加排序方法
+const sortTransferRecords = (list: InventoryLog[]) => {
+  return [...list].sort((a, b) => {
+    const idA = a.id || 0;
+    const idB = b.id || 0;
+    return idB - idA; // 降序排序
+  });
+};
+
 // Fetch transfer inventory records from API（限定 operation_type=3）
 const fetchTransferRecords = async () => {
   try {
@@ -81,6 +90,8 @@ const fetchTransferRecords = async () => {
       page: page.value,
       size: size.value,
       operation_type: 3, // 限定为调库记录
+      sort: 'id',
+      order: 'desc'
     };
     if (searchDateRange.value.length === 2) {
       const [startDate, endDate] = searchDateRange.value;
@@ -90,7 +101,8 @@ const fetchTransferRecords = async () => {
 
     const response = await getInventoryLogs(params);
     if (response.data && response.data.code === 200) {
-      transferRecords.value = response.data.data.items || [];
+      // 对数据进行排序
+      transferRecords.value = sortTransferRecords(response.data.data.items || []);
       total.value = response.data.data.total || 0;
     } else {
       ElMessage.warning('获取数据失败：' + (response.data?.message || '未知错误'));

@@ -116,6 +116,8 @@ export interface UserList {
 export interface PaginationParams {
     page?: number;
     size?: number;
+    sort?: string;
+    order?: 'asc' | 'desc';
 }
 
 // 库存查询参数
@@ -236,6 +238,8 @@ export interface UpdateUserRequest {
 export interface PaginationParams {
     page?: number;
     size?: number;
+    sort?: string;
+    order?: 'asc' | 'desc';
 }
 
 // 库存查询参数

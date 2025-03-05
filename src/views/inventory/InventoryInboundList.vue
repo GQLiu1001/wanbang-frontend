@@ -48,6 +48,15 @@ const isAdmin = computed(() => {
   return user?.role_key === 'admin';
 });
 
+// 添加排序方法
+const sortInventoryRecords = (list: InventoryLog[]) => {
+  return [...list].sort((a, b) => {
+    const idA = a.id || 0;
+    const idB = b.id || 0;
+    return idB - idA; // 降序排序
+  });
+};
+
 // Fetch inventory records from API（限定 operation_type=1）
 const fetchInventoryRecords = async () => {
   try {
@@ -55,6 +64,8 @@ const fetchInventoryRecords = async () => {
       page: page.value,
       size: size.value,
       operation_type: 1, // 限定为入库记录
+      sort: 'id',
+      order: 'desc'
     };
     if (searchDateRange.value.length === 2) {
       const [startDate, endDate] = searchDateRange.value;
@@ -65,8 +76,10 @@ const fetchInventoryRecords = async () => {
     const response = await getInventoryLogs(params);
     const data = response.data;
     if (data.code === 200 && data.data?.items) {
-      inventoryRecords.value = data.data.items;
-      filteredRecords.value = data.data.items;
+      // 对数据进行排序
+      const sortedRecords = sortInventoryRecords(data.data.items);
+      inventoryRecords.value = sortedRecords;
+      filteredRecords.value = sortedRecords;
       total.value = data.data.total || 0;
     } else {
       inventoryRecords.value = [];

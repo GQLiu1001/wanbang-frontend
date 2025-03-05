@@ -133,10 +133,19 @@ const pickerOptions = {
   ],
 };
 
+// 添加排序方法
+const sortOrderList = (list: Order[]) => {
+  return [...list].sort((a, b) => {
+    const idA = a.id || 0;
+    const idB = b.id || 0;
+    return idB - idA; // 降序排序
+  });
+};
+
 // 获取订单列表
 const fetchOrderList = async () => {
   try {
-    const params: any = {
+    const params: OrderQueryParams = {
       page: page.value,
       size: size.value
     };
@@ -158,7 +167,8 @@ const fetchOrderList = async () => {
     const response = await getOrders(params);
     if (response.data && response.data.code === 200) {
       const data = response.data.data;
-      orderListData.value = data.items || [];
+      // 对数据进行排序
+      orderListData.value = sortOrderList(data.items || []);
       total.value = data.total || 0;
     } else {
       ElMessage.error('获取订单列表失败');

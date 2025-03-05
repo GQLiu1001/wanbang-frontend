@@ -56,6 +56,15 @@ const pickerOptions = {
   },
 };
 
+// 添加排序方法
+const sortOutboundRecords = (list: InventoryLog[]) => {
+  return [...list].sort((a, b) => {
+    const idA = a.id || 0;
+    const idB = b.id || 0;
+    return idB - idA; // 降序排序
+  });
+};
+
 // Fetch outbound inventory records from API（限定 operation_type=2）
 const fetchOutboundRecords = async () => {
   try {
@@ -73,7 +82,8 @@ const fetchOutboundRecords = async () => {
     const response = await getInventoryLogs(params);
     const data = response.data;
     if (data.code === 200 && data.data?.items) {
-      outboundRecords.value = data.data.items;
+      // 对数据进行排序
+      outboundRecords.value = sortOutboundRecords(data.data.items);
       total.value = data.data.total || 0;
     } else {
       outboundRecords.value = [mockRecord];

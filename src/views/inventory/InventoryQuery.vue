@@ -64,7 +64,7 @@ const formRules = reactive({
   ],
   specification: [
     { required: true, message: '请输入规格', trigger: 'blur' },
-    { pattern: /^[0-9]+x[0-9]+mm$/, message: '规格格式必须为数字x数字mm，如600x600mm', trigger: 'blur' }
+    { pattern: /^[0-9]+x[0-9]+cm$/, message: '规格格式必须为数字x数字cm，如600x600mm', trigger: 'blur' }
   ],
   surface: [{ required: true, message: '请选择表面处理', trigger: 'change' }],
   category: [{ required: true, message: '请选择分类', trigger: 'change' }],
@@ -91,6 +91,24 @@ const getUnitLabel = (category: number) => {
   return [1, 2].includes(category) ? '片' : '个';
 };
 
+// 计算总箱数
+const calculateTotalBoxes = (row: InventoryItem) => {
+  if (!row.total_pieces || !row.pieces_per_box || row.pieces_per_box <= 0) {
+    return '-';
+  }
+
+  const boxes = Math.floor(row.total_pieces / row.pieces_per_box);
+  const remainingPieces = row.total_pieces % row.pieces_per_box;
+
+  if (boxes > 0 && remainingPieces > 0) {
+    return `${boxes}箱${remainingPieces}${getUnitLabel(row.category)}`;
+  } else if (boxes > 0) {
+    return `${boxes}箱`;
+  } else {
+    return `${remainingPieces}${getUnitLabel(row.category)}`;
+  }
+};
+
 // 计算属性：总数量的标签文本
 const totalLabel = computed(() => {
   return [1, 2].includes(editForm.value.category) ? '总片数' : '总个数';
@@ -113,13 +131,22 @@ const columnLabels = computed(() => ({
   price: `单${getUnitLabel(category.value || 0)}价格`
 }));
 
+// 添加排序方法
+const sortInventoryItems = (list: InventoryItem[]) => {
+  return [...list].sort((a, b) => {
+    const idA = a.id || 0;
+    const idB = b.id || 0;
+    return idB - idA; // 降序排序
+  });
+};
+
 // 搜索函数（匹配接口 /api/inventory/items）
 const performSearch = async () => {
   loading.value = true;
   try {
     const params: InventoryQueryParams = {
       page: page.value,
-      size: size.value,
+      size: size.value
     };
     if (category.value !== null) params.category = category.value;
     if (surface.value !== null) params.surface = surface.value;
@@ -127,7 +154,8 @@ const performSearch = async () => {
     const response = await getInventoryItems(params);
     const data = response.data;
     if (data.code === 200 && data.data?.items) {
-      searchResults.value = data.data.items;
+      // 对数据进行排序
+      searchResults.value = sortInventoryItems(data.data.items);
       total.value = data.data.total || 0;
     } else {
       searchResults.value = [];
@@ -317,6 +345,14 @@ performSearch();
             {{ row.total_pieces.toLocaleString() }}
           </template>
         </el-table-column>
+        <el-table-column width="150">
+          <template #header>
+            总箱数
+          </template>
+          <template #default="{ row }">
+            {{ calculateTotalBoxes(row) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="pieces_per_box" width="100">
           <template #header>
             每箱{{ [1, 2].includes(category || 0) ? '片' : '个' }}数
@@ -358,7 +394,7 @@ performSearch();
             <el-input v-model="editForm.manufacturer" />
           </el-form-item>
           <el-form-item label="规格" prop="specification">
-            <el-input v-model="editForm.specification" placeholder="例如：600x600mm" />
+            <el-input v-model="editForm.specification" placeholder="例如：600x600cm" />
           </el-form-item>
           <el-form-item label="表面处理" prop="surface">
             <el-select v-model="editForm.surface" placeholder="请选择表面处理">

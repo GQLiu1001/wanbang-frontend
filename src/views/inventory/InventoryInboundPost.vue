@@ -15,12 +15,12 @@ const formData = ref<InboundLogRequest>({
   model_number: '',
   manufacturer: '',
   specification: '',
-  surface: null,
-  category: null,
-  warehouse_num: null,
-  total_pieces: null,
-  pieces_per_box: null,
-  price_per_piece: null,
+  surface: undefined,
+  category: undefined,
+  warehouse_num: undefined,
+  total_pieces: undefined,
+  pieces_per_box: undefined,
+  price_per_piece: undefined,
   remark: '',
 });
 
@@ -55,7 +55,7 @@ const rules = reactive({
   ],
   specification: [
     { required: false, message: '请输入规格', trigger: 'blur' },
-    { pattern: /^[0-9]+x[0-9]+mm$/, message: '规格格式建议为数字x数字mm，如600x600mm', trigger: 'blur' }
+    { pattern: /^[0-9]+x[0-9]+cm$/, message: '规格格式建议为数字x数字mm，如600x600mm', trigger: 'blur' }
   ],
   surface: [
     { required: false, message: '请选择表面处理', trigger: 'change' }
@@ -83,6 +83,25 @@ const rules = reactive({
 
 // 表单引用
 const formRef = ref(null);
+
+// 在 script setup 部分添加新的响应式变量和计算属性
+const totalAmount = ref<number | undefined>(undefined);
+
+// 监听总金额变化，自动计算单片价格
+const calculatePricePerPiece = () => {
+  if (totalAmount.value && formData.value.total_pieces) {
+    formData.value.price_per_piece = Number((totalAmount.value / formData.value.total_pieces).toFixed(2));
+  } else {
+    formData.value.price_per_piece = undefined;
+  }
+};
+
+// 监听总数量变化，如果总金额存在则重新计算单片价格
+const handleTotalPiecesChange = () => {
+  if (totalAmount.value) {
+    calculatePricePerPiece();
+  }
+};
 
 // 提交函数（匹配接口 /api/logs/inbound）
 const submitInventory = async () => {
@@ -137,14 +156,15 @@ const resetForm = () => {
     model_number: '',
     manufacturer: '',
     specification: '',
-    surface: null,
-    category: null,
-    warehouse_num: null,
-    total_pieces: null,
-    pieces_per_box: null,
-    price_per_piece: null,
+    surface: undefined,
+    category: undefined,
+    warehouse_num: undefined,
+    total_pieces: undefined,
+    pieces_per_box: undefined,
+    price_per_piece: undefined,
     remark: '',
   };
+  totalAmount.value = undefined;
 };
 
 // 计算总箱数
@@ -222,8 +242,8 @@ const priceLabel = computed(() => {
       <el-row :gutter="20" v-if="showSpecificationAndSurface">
         <el-col :span="12">
           <el-form-item label="规格" prop="specification">
-            <el-input v-model="formData.specification" placeholder="请输入规格（如600x600mm）" />
-            <div class="form-tip">格式：宽x高mm，例如：600x600mm</div>
+            <el-input v-model="formData.specification" placeholder="请输入规格（如600x600cm）" />
+            <div class="form-tip">格式：宽x高cm，例如：600x600cm</div>
           </el-form-item>
         </el-col>
         <el-col :span="12">
@@ -253,7 +273,13 @@ const priceLabel = computed(() => {
       <el-row :gutter="20">
         <el-col :span="showPiecesPerBox ? 8 : 12">
           <el-form-item :label="totalLabel" prop="total_pieces">
-            <el-input v-model.number="formData.total_pieces" :placeholder="'请输入' + totalLabel" type="number" min="1" />
+            <el-input 
+                v-model.number="formData.total_pieces" 
+                :placeholder="'请输入' + totalLabel" 
+                type="number" 
+                min="1"
+                @input="handleTotalPiecesChange"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="8" v-if="showPiecesPerBox">
@@ -262,13 +288,14 @@ const priceLabel = computed(() => {
           </el-form-item>
         </el-col>
         <el-col :span="showPiecesPerBox ? 8 : 12">
-          <el-form-item :label="priceLabel" prop="price_per_piece">
+          <el-form-item label="总计金额">
             <el-input
-                v-model.number="formData.price_per_piece"
-                :placeholder="'请输入' + priceLabel"
+                v-model.number="totalAmount"
+                placeholder="请输入总计金额"
                 type="number"
                 step="0.01"
                 min="0"
+                @input="calculatePricePerPiece"
             >
               <template #prefix>¥</template>
             </el-input>
@@ -277,6 +304,20 @@ const priceLabel = computed(() => {
       </el-row>
 
       <el-row :gutter="20">
+        <el-col :span="showPiecesPerBox ? 8 : 12">
+          <el-form-item :label="priceLabel" prop="price_per_piece">
+            <el-input
+                v-model.number="formData.price_per_piece"
+                :placeholder="'自动计算' + priceLabel"
+                type="number"
+                step="0.01"
+                min="0"
+                disabled
+            >
+              <template #prefix>¥</template>
+            </el-input>
+          </el-form-item>
+        </el-col>
         <el-col :span="16">
           <el-form-item label="备注" prop="remark">
             <el-input
