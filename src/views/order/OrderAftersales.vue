@@ -246,11 +246,6 @@ const saveAftersale = async () => {
     return;
   }
 
-  if (!aftersaleForm.value.resolution_result.trim()) {
-    ElMessage.error('请输入处理结果说明');
-    return;
-  }
-
   const item = aftersaleForm.value.items[0];
   if (item.quantity_change === 0) {
     ElMessage.error('数量变化不能为0');
@@ -487,10 +482,10 @@ onMounted(() => {
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="处理结果说明" required>
+                  <el-form-item label="处理结果说明">
                     <el-input
                         v-model="aftersaleForm.resolution_result"
-                        placeholder="请输入处理结果说明"
+                        placeholder="请输入处理结果说明(选填)"
                     />
                   </el-form-item>
                 </el-col>
