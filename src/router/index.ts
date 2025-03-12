@@ -99,6 +99,11 @@ const router = createRouter({
           name: 'system-roles',
           component: () => import('@/views/system/SystemRoles.vue'),
         },
+        {
+          path: 'delivery/dispatch',
+          name: 'delivery-dispatch',
+          component: () => import('@/views/delivery/DeliveryDispatch.vue')
+        },
       ],
     },
   ],

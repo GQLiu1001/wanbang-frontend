@@ -1,3 +1,34 @@
+// 派送订单查询参数
+export interface DeliveryQueryParams extends PaginationParams {
+    orderNo?: string;
+    customerPhone?: string;
+    status?: string;
+  }
+  
+  // 派送订单数据
+  export interface DeliveryOrder {
+    id?: number;
+    orderNo: string;
+    orderId: number;
+    customerPhone: string;
+    deliveryAddress?: string;
+    deliveryStatus?: number;
+    dispatchTime?: string;
+    driverId?: number;
+    createTime?: string;
+    updateTime?: string;
+    orderRemark?: string;
+    totalAmount?: number;
+    orderCreateTime?: string;
+  }
+  
+  // 派送请求参数
+  export interface DispatchRequest {
+    orderId: number;
+    deliveryAddress: string;
+    deliveryRemark?: string;
+    operatorId: number;
+  }
 // 用户登录请求参数
 export interface LoginRequest {
     username: string;
