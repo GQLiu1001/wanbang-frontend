@@ -196,14 +196,13 @@
       };
   
       const response = await dispatchOrder(dispatchData);
-      const data = response.data;
       
-      if (data.code === 200 || data.code === 201) {
+      if (response.status === 200 || response.status === 201) {
         ElMessage.success('派单成功，司机将收到派送通知');
         dialogVisible.value = false;
-        loadOrders();
+        await loadOrders();
       } else {
-        throw new Error(data.message || '派单失败');
+        throw new Error(response.data?.message || '派单失败');
       }
     } catch (error) {
       console.error('派单失败:', error);

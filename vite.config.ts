@@ -14,9 +14,17 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // 主系统的代理
       '/api': {
-        target: 'http://localhost:8080', // 使用 IPv4 地址而不是 localhost
-        changeOrigin: true
+        target: 'http://localhost:8080/api/',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      // 配送系统的代理
+      '/delivery-api': {
+        target: 'http://配送系统后端地址',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/delivery-api/, '')
       }
     }
   }
