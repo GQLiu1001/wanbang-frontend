@@ -1,52 +1,65 @@
 // 创建专门用于配送系统的axios实例
-import axios, { type AxiosInstance } from 'axios';
-import { ElMessage } from 'element-plus';
-import router from '@/router';
+import axios from 'axios';
+import { useUserStore } from '../stores/user';
 
-const deliveryInstance: AxiosInstance = axios.create({
-    baseURL: 'http://另外的后端系统地址', // 配送系统的基础URL
-    timeout: 10000,
-    headers: { 'Content-Type': 'application/json' },
-    withCredentials: true,
+// 创建专门用于配送系统的axios实例
+const deliveryInstance = axios.create({
+    baseURL: import.meta.env.VITE_DELIVERY_API_URL || 'http://localhost:3001/api', // 配送系统API地址
+    timeout: 10000
 });
 
 // 请求拦截器
 deliveryInstance.interceptors.request.use(
-    (config) => {
-        // 可以设置专门的认证token
-        const deliveryToken = localStorage.getItem('deliveryToken');
-        if (deliveryToken) {
-            config.headers.Authorization = `Bearer ${deliveryToken}`;
+    config => {
+        const userStore = useUserStore();
+        const token = userStore.getToken();
+        
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
         }
+        
         return config;
     },
-    (error) => Promise.reject(error)
+    error => {
+        return Promise.reject(error);
+    }
 );
 
 // 响应拦截器
 deliveryInstance.interceptors.response.use(
-    (response) => {
-        // 根据配送系统的响应格式调整处理逻辑
-        if (response.data?.success) {
-            return response;
-        }
-        return Promise.reject(new Error(response.data?.message || '配送系统请求失败'));
+    response => {
+        return response;
     },
-    (error) => {
+    error => {
         if (error.response) {
+            // 根据响应状态码处理错误
             switch (error.response.status) {
                 case 401:
-                    ElMessage.error('配送系统未授权，请重新登录');
+                    // 未授权，清除token并重定向到登录页
+                    const userStore = useUserStore();
+                    userStore.logout();
+                    window.location.href = '/login';
+                    break;
+                case 403:
+                    console.error('无权限访问');
                     break;
                 case 404:
-                    ElMessage.error('配送系统接口不存在');
+                    console.error('请求的资源不存在');
+                    break;
+                case 500:
+                    console.error('服务器内部错误');
                     break;
                 default:
-                    ElMessage.error(error.response.data?.message || '配送系统请求失败');
+                    console.error(`未知错误: ${error.response.status}`);
             }
+        } else if (error.request) {
+            // 请求发出但没有收到响应
+            console.error('网络错误，无法连接到服务器');
         } else {
-            ElMessage.error('配送系统网络错误');
+            // 请求设置时出现错误
+            console.error('请求错误', error.message);
         }
+        
         return Promise.reject(error);
     }
 );

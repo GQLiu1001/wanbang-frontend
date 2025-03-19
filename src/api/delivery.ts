@@ -16,3 +16,13 @@ export const dispatchOrder = (data: DispatchRequest) => {
 export const getDeliveryStatus = (orderId: number) => {
   return deliveryInstance.get(`/delivery/status/${orderId}`);
 };
+
+// 更新派送状态
+export const updateDeliveryStatusApi = (deliveryId: number, status: number, operatorId: number) => {
+  return deliveryInstance.put(`/delivery/status/${deliveryId}`, { status, operatorId });
+};
+
+// 取消派送
+export const cancelDelivery = (deliveryId: number, operatorId: number) => {
+  return deliveryInstance.post(`/delivery/cancel/${deliveryId}`, { operatorId });
+};

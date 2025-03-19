@@ -27,6 +27,8 @@ export interface DeliveryQueryParams extends PaginationParams {
     orderId: number;
     deliveryAddress: string;
     deliveryRemark?: string;
+    deliveryWeight: number;
+    deliveryFee: number;
     operatorId: number;
   }
 // 用户登录请求参数
@@ -388,4 +390,30 @@ export interface AftersalePostRequest {
     }>;
     resolution_result?: string;
     aftersale_operator: number;
+}
+
+// 司机查询参数
+export interface DriverQueryParams extends PaginationParams {
+  name?: string;
+  phone?: string;
+  status?: number; // 1=待审核, 2=已审核, 3=已拒绝
+}
+
+// 司机信息
+export interface Driver {
+  id: number;
+  name: string;
+  phone: string;
+  status: number; // 1=待审核, 2=已审核, 3=已拒绝
+  license_number?: string;
+  vehicle_type?: string;
+  registration_time?: string;
+  approval_time?: string;
+  remark?: string;
+}
+
+// 司机审核请求
+export interface DriverApprovalRequest {
+  operator_id: number;
+  remark?: string;
 }

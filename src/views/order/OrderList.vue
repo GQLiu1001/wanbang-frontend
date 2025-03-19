@@ -634,12 +634,20 @@ onMounted(() => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right">
-        <template #default="{ row }">
-          <el-button type="primary" size="small" @click="handleViewDetail(row)">详情</el-button>
-          <el-button type="success" size="small" @click="handleAftersale(row)">售后</el-button>
-          <el-button type="warning" size="small" @click="handleEditOrder(row)">编辑订单</el-button>
-          <el-button v-if="isAdmin" type="danger" size="small" @click="handleDeleteOrder(row)">删除订单</el-button>
+      <el-table-column label="操作" width="300" fixed="right">
+        <template #default="scope">
+          <div class="button-group">
+            <el-button type="primary" size="small" @click="handleViewDetail(scope.row)">详情</el-button>
+            <el-button type="warning" size="small" @click="handleEditOrder(scope.row)">编辑</el-button>
+            <el-popconfirm
+              title="确定要删除这个订单吗？"
+              @confirm="handleDeleteOrder(scope.row.id)"
+            >
+              <template #reference>
+                <el-button v-if="isAdmin" type="danger" size="small">删除</el-button>
+              </template>
+            </el-popconfirm>
+          </div>
         </template>
       </el-table-column>
     </el-table>

@@ -57,11 +57,30 @@ export const useUserStore = defineStore('user', () => {
         return userInfo.value?.role_key === 'admin';
     };
 
+    // 新增：获取token的方法
+    const getToken = () => {
+        return localStorage.getItem('token') || '';
+    };
+
+    // 新增：设置token的方法
+    const setToken = (token: string) => {
+        localStorage.setItem('token', token);
+    };
+
+    // 新增：登出方法，清除用户信息和token
+    const logout = () => {
+        clearUserInfo();
+        localStorage.removeItem('token');
+    };
+
     return {
         userInfo,
         setUserInfo,
         getUserInfo,
         clearUserInfo,
         isAdmin,
+        getToken,
+        setToken,
+        logout,
     };
 });
