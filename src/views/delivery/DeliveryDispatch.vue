@@ -178,13 +178,21 @@
     }
   }, { immediate: true });
   
+  const sortOrderList = (list: DeliveryOrder[]) => {
+    return [...list].sort((a, b) => {
+      const timeA = a.orderCreateTime ? new Date(a.orderCreateTime).getTime() : 0;
+      const timeB = b.orderCreateTime ? new Date(b.orderCreateTime).getTime() : 0;
+      return timeB - timeA;
+    });
+  };
+  
   const loadOrders = async () => {
     loading.value = true;
     try {
       const response = await getPendingOrders(queryForm);
       const data = response.data;
       if (data.code === 200 && data.data) {
-        orderList.value = data.data.items.map((item: any) => ({
+        const orderData = data.data.items.map((item: any) => ({
           id: item.id,
           orderNo: item.order_no,
           orderId: item.id,
@@ -195,6 +203,8 @@
           orderRemark: item.order_remark,
           deliveryStatus: item.delivery_status || 1,
         }));
+        
+        orderList.value = sortOrderList(orderData);
         total.value = data.data.total || 0;
       } else {
         orderList.value = [];
