@@ -3,34 +3,6 @@
     <h1>司机审核</h1>
     <hr>
     
-    <el-card class="filter-container">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-form-item label="司机姓名">
-            <el-input v-model="queryForm.name" placeholder="请输入司机姓名"></el-input>
-          </el-form-item>
-        </el-col>
-        <el-col :span="6">
-          <el-form-item label="手机号码">
-            <el-input v-model="queryForm.phone" placeholder="请输入手机号码"></el-input>
-          </el-form-item>
-        </el-col>
-        <el-col :span="6">
-          <el-form-item label="审核状态">
-            <el-select v-model="queryForm.status" placeholder="请选择状态" clearable>
-              <el-option label="待审核" :value="1"></el-option>
-              <el-option label="已审核" :value="2"></el-option>
-              <el-option label="已拒绝" :value="3"></el-option>
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :span="6">
-          <el-button type="primary" @click="loadDrivers">查询</el-button>
-          <el-button @click="resetQuery">重置</el-button>
-        </el-col>
-      </el-row>
-    </el-card>
-
     <el-card class="driver-list-container">
       <el-table :data="driverList" style="width: 100%" v-loading="loading" border>
         <el-table-column prop="id" label="ID" width="80" />
@@ -77,18 +49,8 @@
         </el-table-column>
       </el-table>
       
-      <div class="pagination-container">
-        <el-pagination
-          v-if="total > 0"
-          :current-page="queryForm.page"
-          :page-size="queryForm.size"
-          :total="total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @current-change="handleCurrentChange"
-          @size-change="handleSizeChange"
-        />
-        <div v-else class="no-data">暂无司机数据</div>
+      <div class="pagination-container" v-if="driverList.length === 0">
+        <div class="no-data">暂无司机数据</div>
       </div>
     </el-card>
 
@@ -132,11 +94,7 @@ const currentDriver = ref<Driver | null>(null);
 const approvalRemark = ref('');
 
 const queryForm = reactive<DriverQueryParams>({
-  name: '',
-  phone: '',
   status: 1, // 默认查询待审核的司机
-  page: 1,
-  size: 10
 });
 
 const operatorId = computed(() => userStore.getUserInfo()?.id || 0);
@@ -144,11 +102,16 @@ const operatorId = computed(() => userStore.getUserInfo()?.id || 0);
 const loadDrivers = async () => {
   loading.value = true;
   try {
-    const response = await getPendingDrivers(queryForm);
+    // 只使用状态参数，不使用分页
+    const params = {
+      status: queryForm.status
+    };
+    
+    const response = await getPendingDrivers(params);
     const data = response.data;
     if (data.code === 200 && data.data) {
-      driverList.value = data.data.items;
-      total.value = data.data.total || 0;
+      driverList.value = data.data.items || data.data;
+      total.value = driverList.value.length;
     } else {
       driverList.value = [];
       total.value = 0;
@@ -162,24 +125,6 @@ const loadDrivers = async () => {
   } finally {
     loading.value = false;
   }
-};
-
-const resetQuery = () => {
-  queryForm.name = '';
-  queryForm.phone = '';
-  queryForm.status = 1;
-  queryForm.page = 1;
-  loadDrivers();
-};
-
-const handleSizeChange = (val: number) => {
-  queryForm.size = val;
-  loadDrivers();
-};
-
-const handleCurrentChange = (val: number) => {
-  queryForm.page = val;
-  loadDrivers();
 };
 
 const handleApprove = (row: Driver) => {
@@ -255,9 +200,6 @@ onMounted(() => {
 <style scoped>
 .driver-approval-container {
   padding: 20px;
-}
-.filter-container {
-  margin-bottom: 20px;
 }
 .driver-list-container {
   margin-bottom: 20px;

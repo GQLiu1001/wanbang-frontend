@@ -6,28 +6,12 @@
       <el-card class="filter-container">
         <el-form :inline="true">
           <el-row :gutter="20">
-            <el-col :span="6">
-              <el-form-item label="订单编号">
-                <el-input v-model="queryForm.orderNo" placeholder="请输入订单编号"></el-input>
-              </el-form-item>
-            </el-col>
-            <el-col :span="6">
+            <el-col :span="16">
               <el-form-item label="客户电话">
                 <el-input v-model="queryForm.customerPhone" placeholder="请输入客户电话"></el-input>
               </el-form-item>
             </el-col>
-            <el-col :span="6">
-              <el-form-item label="派送状态">
-                <el-select v-model="queryForm.status" placeholder="请选择状态" clearable>
-                  <el-option label="待派单" :value="1"></el-option>
-                  <el-option label="待接单" :value="2"></el-option>
-                  <el-option label="配送中" :value="3"></el-option>
-                  <el-option label="已完成" :value="4"></el-option>
-                  <el-option label="已取消" :value="5"></el-option>
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="6">
+            <el-col :span="8">
               <el-button type="primary" @click="loadOrders">查询</el-button>
               <el-button @click="resetQuery">重置</el-button>
             </el-col>
@@ -170,9 +154,7 @@
   const deliveryFee = ref<number | null>(null);
   
   const queryForm = reactive<DeliveryQueryParams>({
-    orderNo: route.query.orderNo as string || '',
     customerPhone: route.query.customerPhone as string || '',
-    status: undefined,
     page: 1,
     size: 10
   });
@@ -191,9 +173,6 @@
   const getStatusType = (status: number) => statusMap[status]?.type || '';
   
   watch(() => route.query, (query) => {
-    if (query.orderNo) {
-      queryForm.orderNo = query.orderNo as string;
-    }
     if (query.customerPhone) {
       queryForm.customerPhone = query.customerPhone as string;
     }
@@ -342,9 +321,7 @@
   };
   
   const resetQuery = () => {
-    queryForm.orderNo = '';
     queryForm.customerPhone = '';
-    queryForm.status = undefined;
     queryForm.page = 1;
     loadOrders();
   };
