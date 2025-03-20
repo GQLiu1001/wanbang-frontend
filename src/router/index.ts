@@ -31,7 +31,12 @@ const router = createRouter({
         {
           path: 'order/list',
           name: 'order-list',
-          component: () => import('@/views/order/OrderList.vue')
+          component: () => import('@/views/order/OrderList.vue'),
+        },
+        {
+          path: 'order/delivery',
+          name: 'order-delivery',
+          component: () => import('@/views/order/OrderDelivery.vue'),
         },
         // 欢迎页面
         {

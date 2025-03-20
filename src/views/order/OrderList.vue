@@ -5,9 +5,9 @@ import { ref, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { getOrders, getOrderDetail, updateOrder, updateOrderItem, addOrderItem, deleteOrderItem, deleteOrder } from '@/api/order';
-import { dispatchOrder } from '@/api/delivery';
 import { useUserStore } from '@/stores/user';
 import { getInventoryByModelNumber } from '@/api/inventory';
+import { dispatchOrder } from '@/api/delivery'; // 导入派送API
 
 // 获取用户信息
 const userStore = useUserStore();
@@ -46,6 +46,8 @@ interface Order {
   order_create_time: string;
   order_update_time: string;
   aftersale_status?: number | null;
+  dispatch_status?: number; // 派送状态
+  delivery_address?: string; // 配送地址
   items?: OrderItem[];  // 订单包含的多个商品项
   items_count?: number; // 订单项数量
 }
@@ -99,18 +101,6 @@ const addItemForm = ref({
   price_difference: 0,
   total_pieces: undefined as number | undefined,
   source_warehouse: 1
-});
-
-// 派送订单对话框
-const dispatchDialogVisible = ref(false);
-const currentDispatchOrder = ref<Order | null>(null);
-const dispatchForm = ref({
-  orderId: 0,
-  deliveryAddress: '',
-  deliveryRemark: '',
-  deliveryWeight: 0,
-  deliveryFee: 0,
-  operatorId: 0
 });
 
 // 日期选择器选项
@@ -232,52 +222,6 @@ const handleAftersale = (order: Order) => {
       id: order.id.toString() // Convert to string explicitly
     }
   });
-};
-
-// 打开派送对话框
-const handleDispatch = (order: Order) => {
-  currentDispatchOrder.value = order;
-  dispatchForm.value = {
-    orderId: order.id,
-    deliveryAddress: '',
-    deliveryRemark: '',
-    deliveryWeight: 0,
-    deliveryFee: 0,
-    operatorId: operatorId || 0
-  };
-  dispatchDialogVisible.value = true;
-};
-
-// 提交派送请求
-const submitDispatch = async () => {
-  try {
-    if (!dispatchForm.value.deliveryAddress) {
-      ElMessage.error('配送地址不能为空');
-      return;
-    }
-
-    if (dispatchForm.value.deliveryWeight <= 0) {
-      ElMessage.error('货物吨数必须大于0');
-      return;
-    }
-
-    if (dispatchForm.value.deliveryFee < 0) {
-      ElMessage.error('配送费不能为负数');
-      return;
-    }
-
-    const response = await dispatchOrder(dispatchForm.value);
-    if (response.data && response.data.code === 200) {
-      ElMessage.success('订单派送成功');
-      dispatchDialogVisible.value = false;
-      fetchOrderList(); // 刷新订单列表
-    } else {
-      ElMessage.error(response.data?.message || '派送订单失败');
-    }
-  } catch (error) {
-    console.error('派送订单时出错:', error);
-    ElMessage.error('派送订单时出错');
-  }
 };
 
 // 编辑订单基本信息
@@ -610,9 +554,149 @@ const getItemsCount = (order: Order) => {
 };
 
 // 售后状态映射
-const aftersaleStatusMap = {
+const aftersaleStatusMap: Record<number, string> = {
   1: '新建',
   2: '已解决',
+};
+
+// 派送状态映射
+const dispatchStatusMap = {
+  0: { text: '未派送', type: 'info' },
+  1: { text: '待接单', type: 'warning' },
+  2: { text: '配送中', type: 'primary' },
+  3: { text: '已完成', type: 'success' },
+  4: { text: '已取消', type: 'danger' }
+};
+
+// 获取派送状态文本
+const getDispatchStatusText = (status: number | undefined) => {
+  if (status === undefined) return '未派送';
+  return dispatchStatusMap[status as keyof typeof dispatchStatusMap]?.text || '未知状态';
+};
+
+// 获取派送状态类型（用于标签颜色）
+const getDispatchStatusType = (status: number | undefined) => {
+  if (status === undefined) return 'info';
+  return dispatchStatusMap[status as keyof typeof dispatchStatusMap]?.type || '';
+};
+
+// 派送对话框
+const dispatchDialogVisible = ref(false);
+const currentDispatchOrder = ref<Order | null>(null);
+const dispatchForm = ref({
+  orderId: 0,
+  deliveryAddress: '',
+  deliveryRemark: '',
+  deliveryWeight: 0,
+  deliveryFee: 0,
+  operatorId: operatorId || 0
+});
+
+// 售后对话框
+const aftersaleDialogVisible = ref(false);
+
+// 处理派送按钮点击
+const handleDispatch = (order: Order) => {
+  currentDispatchOrder.value = order;
+  dispatchForm.value = {
+    orderId: order.id,
+    deliveryAddress: order.delivery_address || '',
+    deliveryRemark: '',
+    deliveryWeight: 0,
+    deliveryFee: 0,
+    operatorId: operatorId || 0
+  };
+  dispatchDialogVisible.value = true;
+};
+
+// 提交派送请求
+const submitDispatch = async () => {
+  if (!dispatchForm.value.deliveryAddress) {
+    ElMessage.error('配送地址不能为空');
+    return;
+  }
+
+  if (dispatchForm.value.deliveryWeight <= 0) {
+    ElMessage.error('货物吨数必须大于0');
+    return;
+  }
+
+  if (dispatchForm.value.deliveryFee < 0) {
+    ElMessage.error('配送费不能为负数');
+    return;
+  }
+
+  try {
+    // 使用 ElMessageBox 确认派送操作
+    const confirmResult = await ElMessageBox.confirm('确认派送该订单?', '提示', {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'warning'
+    });
+    
+    // 用户确认后继续
+    try {
+      // 1. 更新订单状态
+      const updateResult = await updateOrder(currentDispatchOrder.value?.id || 0, {
+        dispatch_status: 1, // 设置为"待接单"状态
+        delivery_address: dispatchForm.value.deliveryAddress
+      });
+      
+      if (!updateResult.data || updateResult.data.code !== 200) {
+        throw new Error('更新订单状态失败');
+      }
+      
+      // 2. 向派送系统发送派送请求
+      const response = await dispatchOrder(dispatchForm.value);
+      
+      if (response.data && response.data.code === 200) {
+        ElMessage.success('订单派送成功');
+        dispatchDialogVisible.value = false;
+        fetchOrderList(); // 重新加载列表
+      } else {
+        // 如果派送系统请求失败，回滚订单状态
+        await updateOrder(currentDispatchOrder.value?.id || 0, {
+          dispatch_status: 0, // 恢复为"未派送"状态
+        });
+        throw new Error(response.data?.message || '派送订单失败');
+      }
+    } catch (error) {
+      console.error('派送订单时出错:', error);
+      
+      // 如果连接派送系统失败，提供备用解决方案
+      try {
+        const backupConfirm = await ElMessageBox.confirm(
+          '连接派送系统失败，是否仅更新本地订单状态为已派送？', 
+          '派送失败', 
+          {
+            confirmButtonText: '是',
+            cancelButtonText: '否',
+            type: 'warning'
+          }
+        );
+        
+        // 用户确认使用备用方案，只更新本地数据库状态
+        const fallbackUpdate = await updateOrder(currentDispatchOrder.value?.id || 0, {
+          dispatch_status: 1, // 设置为"待接单"状态
+          delivery_address: dispatchForm.value.deliveryAddress
+        });
+        
+        if (fallbackUpdate.data && fallbackUpdate.data.code === 200) {
+          ElMessage.success('订单已标记为派送状态');
+          dispatchDialogVisible.value = false;
+          fetchOrderList(); // 重新加载列表
+        } else {
+          ElMessage.error('更新订单状态失败');
+        }
+      } catch (backupError) {
+        // 用户取消备用方案
+        ElMessage.info('派送操作已取消');
+      }
+    }
+  } catch (error) {
+    // 用户取消确认
+    ElMessage.info('已取消派送操作');
+  }
 };
 
 // 初始化
@@ -693,6 +777,13 @@ onMounted(() => {
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="派送状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="getDispatchStatusType(row.dispatch_status)">
+            {{ getDispatchStatusText(row.dispatch_status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="140" fixed="right">
         <template #default="scope">
           <div class="button-group-vertical">
@@ -702,7 +793,12 @@ onMounted(() => {
             </div>
             <div class="button-row">
               <el-button type="success" size="small" @click="handleAftersale(scope.row)">售后</el-button>
-              <el-button type="info" size="small" @click="handleDispatch(scope.row)">派送</el-button>
+              <el-button 
+                v-if="!scope.row.dispatch_status || scope.row.dispatch_status === 0"
+                type="primary" 
+                size="small" 
+                @click="handleDispatch(scope.row)"
+              >派送</el-button>
             </div>
             <div v-if="isAdmin" class="button-row">
               <el-popconfirm
@@ -764,7 +860,12 @@ onMounted(() => {
               {{ currentOrderDetail.aftersale_status ? aftersaleStatusMap[currentOrderDetail.aftersale_status] : '无' }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item :span="3" label="订单备注">
+          <el-descriptions-item label="派送状态">
+            <el-tag :type="getDispatchStatusType(currentOrderDetail.dispatch_status)">
+              {{ getDispatchStatusText(currentOrderDetail.dispatch_status) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="订单备注" :span="3">
             {{ currentOrderDetail.order_remark || '-' }}
           </el-descriptions-item>
         </el-descriptions>
@@ -1024,58 +1125,75 @@ onMounted(() => {
       </template>
     </el-dialog>
 
-    <!-- 派送订单对话框 -->
+    <!-- 售后处理对话框 -->
     <el-dialog
-        v-model="dispatchDialogVisible"
-        title="派送订单"
-        width="50%"
+        v-model="aftersaleDialogVisible"
+        title="售后处理"
+        width="80%"
         destroy-on-close
+    >
+      <template v-if="currentOrderDetail">
+        <!-- 售后处理表单内容 -->
+      </template>
+    </el-dialog>
+    
+    <!-- 派送对话框 -->
+    <el-dialog
+      v-model="dispatchDialogVisible"
+      title="派送订单"
+      width="50%"
+      destroy-on-close
     >
       <div v-if="currentDispatchOrder" class="order-info-summary">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="订单编号">{{ currentDispatchOrder.order_no }}</el-descriptions-item>
           <el-descriptions-item label="客户手机号">{{ currentDispatchOrder.customer_phone }}</el-descriptions-item>
-          <el-descriptions-item label="订单总金额">{{ currentDispatchOrder.total_amount.toFixed(2) }} 元</el-descriptions-item>
+          <el-descriptions-item label="订单总金额">
+            {{ currentDispatchOrder.total_amount ? currentDispatchOrder.total_amount.toFixed(2) + ' 元' : '-' }}
+          </el-descriptions-item>
           <el-descriptions-item label="创建时间">
             {{ new Date(currentDispatchOrder.order_create_time).toLocaleString() }}
           </el-descriptions-item>
         </el-descriptions>
       </div>
+      <!-- 派送表单 -->
       <el-form :model="dispatchForm" label-width="120px">
         <el-form-item label="配送地址" required>
           <el-input
-              v-model="dispatchForm.deliveryAddress"
-              placeholder="请输入配送地址"
+            v-model="dispatchForm.deliveryAddress"
+            placeholder="请输入配送地址"
           />
         </el-form-item>
         <el-form-item label="配送备注">
           <el-input
-              v-model="dispatchForm.deliveryRemark"
-              type="textarea"
-              :rows="3"
-              placeholder="请输入配送备注（可选）"
+            v-model="dispatchForm.deliveryRemark"
+            type="textarea"
+            placeholder="请输入配送备注"
+            :rows="3"
           />
         </el-form-item>
         <el-form-item label="货物吨数" required>
-          <el-input
-              v-model.number="dispatchForm.deliveryWeight"
-              placeholder="请输入货物吨数"
-              type="number"
-              :min="0"
+          <el-input-number
+            v-model="dispatchForm.deliveryWeight"
+            :min="0.1"
+            :step="0.1"
+            :precision="1"
           />
         </el-form-item>
         <el-form-item label="配送费" required>
-          <el-input
-              v-model.number="dispatchForm.deliveryFee"
-              placeholder="请输入配送费"
-              type="number"
-              :min="0"
+          <el-input-number
+            v-model="dispatchForm.deliveryFee"
+            :min="0"
+            :step="1"
+            :precision="0"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dispatchDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitDispatch">提交</el-button>
+        <span class="dialog-footer">
+          <el-button @click="dispatchDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitDispatch">确认派送</el-button>
+        </span>
       </template>
     </el-dialog>
   </div>

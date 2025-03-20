@@ -2,9 +2,9 @@ import axios from '@/utils/axios'; // 原系统的 axios 实例
 import deliveryInstance from '@/utils/deliveryAxios'; // 新的配送系统 axios 实例
 import type { DeliveryQueryParams, DispatchRequest } from '@/types/interfaces';
 
-// 获取待派送订单列表 - 使用原系统的 API
+// 获取待派送订单列表 - 使用派送系统的 API
 export const getPendingOrders = (params: DeliveryQueryParams) => {
-  return axios.get('/orders', { params });
+  return deliveryInstance.get('/delivery/orders', { params });
 };
 
 // 派送订单 - 使用新的配送系统

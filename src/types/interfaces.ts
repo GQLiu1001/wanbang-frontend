@@ -369,6 +369,8 @@ export interface OrderChangeRequest {
     customer_phone?: string;
     operator_id?: number;
     order_remark?: string;
+    dispatch_status?: number; // 派送状态
+    delivery_address?: string; // 配送地址
 }
 
 // 订单项修改请求
