@@ -4,8 +4,10 @@ import { useUserStore } from '../stores/user';
 
 // 创建专门用于配送系统的axios实例
 const deliveryInstance = axios.create({
-    baseURL: import.meta.env.VITE_DELIVERY_API_URL || 'http://localhost:3001/api', // 配送系统API地址
-    timeout: 10000
+    baseURL: '/delivery-api', // 配送系统API地址
+    timeout: 10000,
+    headers: { 'Content-Type': 'application/json' },
+    withCredentials: true,
 });
 
 // 请求拦截器

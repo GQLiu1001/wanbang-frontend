@@ -22,7 +22,7 @@ export default defineConfig({
       },
       // 配送系统的代理
       '/delivery-api': {
-        target: 'http://配送系统后端地址',
+        target: 'http://localhost:8000/api/',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/delivery-api/, '')
       }
