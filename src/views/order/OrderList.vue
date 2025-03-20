@@ -639,6 +639,7 @@ onMounted(() => {
           <div class="button-group">
             <el-button type="primary" size="small" @click="handleViewDetail(scope.row)">详情</el-button>
             <el-button type="warning" size="small" @click="handleEditOrder(scope.row)">编辑</el-button>
+            <el-button type="success" size="small" @click="handleAftersale(scope.row)">售后</el-button>
             <el-popconfirm
               title="确定要删除这个订单吗？"
               @confirm="handleDeleteOrder(scope.row.id)"
