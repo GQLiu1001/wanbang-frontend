@@ -693,21 +693,27 @@ onMounted(() => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="300" fixed="right">
+      <el-table-column label="操作" width="140" fixed="right">
         <template #default="scope">
-          <div class="button-group">
-            <el-button type="primary" size="small" @click="handleViewDetail(scope.row)">详情</el-button>
-            <el-button type="warning" size="small" @click="handleEditOrder(scope.row)">编辑</el-button>
-            <el-button type="success" size="small" @click="handleAftersale(scope.row)">售后</el-button>
-            <el-button type="info" size="small" @click="handleDispatch(scope.row)">派送</el-button>
-            <el-popconfirm
-              title="确定要删除这个订单吗？"
-              @confirm="handleDeleteOrder(scope.row.id)"
-            >
-              <template #reference>
-                <el-button v-if="isAdmin" type="danger" size="small">删除</el-button>
-              </template>
-            </el-popconfirm>
+          <div class="button-group-vertical">
+            <div class="button-row">
+              <el-button type="primary" size="small" @click="handleViewDetail(scope.row)">详情</el-button>
+              <el-button type="warning" size="small" @click="handleEditOrder(scope.row)">编辑</el-button>
+            </div>
+            <div class="button-row">
+              <el-button type="success" size="small" @click="handleAftersale(scope.row)">售后</el-button>
+              <el-button type="info" size="small" @click="handleDispatch(scope.row)">派送</el-button>
+            </div>
+            <div v-if="isAdmin" class="button-row">
+              <el-popconfirm
+                title="确定要删除这个订单吗？"
+                @confirm="handleDeleteOrder(scope.row.id)"
+              >
+                <template #reference>
+                  <el-button type="danger" size="small">删除</el-button>
+                </template>
+              </el-popconfirm>
+            </div>
           </div>
         </template>
       </el-table-column>
@@ -765,7 +771,7 @@ onMounted(() => {
 
         <div class="order-items-header">
           <h3>订单商品 ({{ currentOrderDetail.items?.length || 0 }}项)</h3>
-          <div>
+          <div class="button-row">
             <el-button type="success" size="small" @click="handleAddItem(currentOrderDetail)">添加商品</el-button>
             <el-button type="primary" size="small" @click="handleAftersale(currentOrderDetail)">
               前往售后处理
@@ -799,8 +805,10 @@ onMounted(() => {
           </el-table-column>
           <el-table-column label="操作" width="180">
             <template #default="{ row }">
-              <el-button type="warning" size="small" @click="handleEditItem(row)">编辑</el-button>
-              <el-button v-if="isAdmin" type="danger" size="small" @click="handleDeleteItem(row)">删除</el-button>
+              <div class="button-row">
+                <el-button type="warning" size="small" @click="handleEditItem(row)">编辑</el-button>
+                <el-button v-if="isAdmin" type="danger" size="small" @click="handleDeleteItem(row)">删除</el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -1155,7 +1163,13 @@ onMounted(() => {
   color: #f56c6c;
 }
 
-.button-group {
+.button-group-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.button-row {
   display: flex;
   gap: 5px;
 }
