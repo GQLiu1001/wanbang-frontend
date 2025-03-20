@@ -21,12 +21,17 @@
         <el-table-column prop="id" label="ID" min-width="10%" align="center" />
         <el-table-column prop="name" label="司机姓名" min-width="20%" align="center" />
         <el-table-column prop="phone" label="手机号码" min-width="30%" align="center" />
-        <el-table-column prop="status" label="状态" min-width="15%">
+        <el-table-column prop="money" label="账户余额" min-width="15%" align="center">
+          <template #default="{ row }">
+            <span>{{ row.money || 0 }}元</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="auditStatus" label="状态" min-width="15%">
           <template #default="{ row }">
             <div class="tag-center">
-              <el-tag v-if="row.status === 1" type="warning">待审核</el-tag>
-              <el-tag v-else-if="row.status === 2" type="success">已审核</el-tag>
-              <el-tag v-else-if="row.status === 3" type="danger">已拒绝</el-tag>
+              <el-tag v-if="row.auditStatus === 0" type="warning">待审核</el-tag>
+              <el-tag v-else-if="row.auditStatus === 1" type="success">已审核</el-tag>
+              <el-tag v-else-if="row.auditStatus === 2" type="danger">已拒绝</el-tag>
               <el-tag v-else type="info">未知</el-tag>
             </div>
           </template>
@@ -35,7 +40,7 @@
           <template #default="scope">
             <div class="button-row-center">
               <!-- 待审核状态下显示审核和拒绝按钮 -->
-              <template v-if="scope.row.status === 1">
+              <template v-if="scope.row.auditStatus === 0">
                 <el-button
                   type="success" 
                   size="small" 
@@ -53,6 +58,13 @@
                 size="small"
                 @click="handleDelete(scope.row)"
               >删除</el-button>
+              <!-- 只有管理员才能看到清零按钮 -->
+              <el-button
+                v-if="isAdmin"
+                type="warning"
+                size="small"
+                @click="handleResetMoney(scope.row)"
+              >清零</el-button>
             </div>
           </template>
         </el-table-column>
@@ -89,9 +101,9 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getPendingDrivers, approveDriver, rejectDriver } from '@/api/driver';
+import { getPendingDrivers, approveDriver, rejectDriver, resetDriverMoney } from '@/api/driver';
 import { useUserStore } from '@/stores/user';
-import type { DriverQueryParams, Driver } from '@/types/interfaces';
+import type { DriverQueryParams, Driver, DriverApprovalRequest } from '@/types/interfaces';
 
 const userStore = useUserStore();
 const loading = ref(false);
@@ -103,60 +115,65 @@ const currentDriver = ref<Driver | null>(null);
 const approvalRemark = ref('');
 const useMockData = ref(true); // 添加一个标志来控制是否使用模拟数据
 
+// 添加管理员权限检查
+const isAdmin = computed(() => userStore.getUserInfo()?.role_key === 'admin');
+
 // 模拟司机数据
 const mockDrivers: Driver[] = [
   {
     id: 1001,
     name: '张三',
     phone: '13812345678',
-    license_number: 'A12345678',
-    vehicle_type: '厢式货车',
-    status: 1,
-    registration_time: new Date().toISOString(),
+    auditStatus: 0,
+    workStatus: 1,
+    money: 1000,
+    createTime: new Date().toISOString(),
+    updateTime: new Date().toISOString()
   },
   {
     id: 1002,
     name: '李四',
     phone: '13987654321',
-    license_number: 'B87654321',
-    vehicle_type: '平板货车',
-    status: 1,
-    registration_time: new Date().toISOString(),
+    auditStatus: 0,
+    workStatus: 1,
+    money: 2000,
+    createTime: new Date().toISOString(),
+    updateTime: new Date().toISOString()
   },
   {
     id: 1003,
     name: '王五',
     phone: '13567891234',
-    license_number: 'C56789012',
-    vehicle_type: '冷藏车',
-    status: 2,
-    registration_time: new Date().toISOString(),
-    approval_time: new Date().toISOString(),
+    auditStatus: 1,
+    workStatus: 2,
+    money: 3000,
+    createTime: new Date().toISOString(),
+    updateTime: new Date().toISOString()
   },
   {
     id: 1004,
     name: '赵六',
     phone: '13612378945',
-    license_number: 'D12378945',
-    vehicle_type: '集装箱车',
-    status: 3,
-    registration_time: new Date().toISOString(),
-    approval_time: new Date().toISOString(),
+    auditStatus: 2,
+    workStatus: 3,
+    money: 0,
+    createTime: new Date().toISOString(),
+    updateTime: new Date().toISOString()
   },
   {
     id: 1005,
     name: '陈七',
     phone: '13712345670',
-    license_number: 'E12345670',
-    vehicle_type: '厢式货车',
-    status: 2,
-    registration_time: new Date().toISOString(),
-    approval_time: new Date().toISOString(),
+    auditStatus: 1,
+    workStatus: 1,
+    money: 5000,
+    createTime: new Date().toISOString(),
+    updateTime: new Date().toISOString()
   }
 ];
 
 const queryForm = reactive<DriverQueryParams>({
-  status: 1, // 默认查询待审核的司机
+  auditStatus: 0, // 默认查询未审核的司机
 });
 
 const operatorId = computed(() => userStore.getUserInfo()?.id || 0);
@@ -219,8 +236,8 @@ const confirmApprove = async () => {
       setTimeout(() => {
         const index = mockDrivers.findIndex(driver => driver.id === currentDriver.value?.id);
         if (index !== -1) {
-          mockDrivers[index].status = 2;
-          mockDrivers[index].approval_time = new Date().toISOString();
+          mockDrivers[index].auditStatus = 1;
+          mockDrivers[index].updateTime = new Date().toISOString();
         }
         ElMessage.success('司机审核通过成功');
         approveDialogVisible.value = false;
@@ -230,9 +247,10 @@ const confirmApprove = async () => {
       return;
     }
 
-    const approvalData = {
-      operator_id: operatorId.value,
-      remark: approvalRemark.value
+    const approvalData: DriverApprovalRequest = {
+      auditStatus: 1, // 1=已通过
+      auditRemark: approvalRemark.value,
+      auditor: userStore.getUserInfo()?.username || 'unknown'
     };
 
     const response = await approveDriver(currentDriver.value.id, approvalData);
@@ -271,8 +289,8 @@ const handleReject = (row: Driver) => {
           setTimeout(() => {
             const index = mockDrivers.findIndex(driver => driver.id === row.id);
             if (index !== -1) {
-              mockDrivers[index].status = 3;
-              mockDrivers[index].approval_time = new Date().toISOString();
+              mockDrivers[index].auditStatus = 2;
+              mockDrivers[index].updateTime = new Date().toISOString();
             }
             ElMessage.success('已拒绝该司机申请');
             loadDrivers();
@@ -329,6 +347,54 @@ const handleDelete = (row: Driver) => {
       } catch (error) {
         console.error('删除失败:', error);
         ElMessage.error('删除失败，请稍后重试');
+      }
+    })
+    .catch(() => {
+      // 用户取消操作
+    });
+};
+
+const handleResetMoney = (row: Driver) => {
+  // 再次检查权限
+  if (!isAdmin.value) {
+    ElMessage.error('只有管理员才能进行此操作');
+    return;
+  }
+
+  ElMessageBox.confirm(
+    `确定要清零司机 ${row.name} 的账户余额吗？此操作不可恢复。`,
+    '清零确认',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  )
+    .then(async () => {
+      try {
+        if (useMockData.value) {
+          // 使用模拟数据时，直接更新本地数据
+          setTimeout(() => {
+            const index = mockDrivers.findIndex(driver => driver.id === row.id);
+            if (index !== -1) {
+              mockDrivers[index].money = 0;
+            }
+            ElMessage.success('已清零该司机账户余额');
+            loadDrivers();
+          }, 500);
+          return;
+        }
+
+        const response = await resetDriverMoney(row.id);
+        if (response.status === 200 || response.status === 204) {
+          ElMessage.success('已清零该司机账户余额');
+          await loadDrivers();
+        } else {
+          throw new Error(response.data?.message || '清零失败');
+        }
+      } catch (error) {
+        console.error('清零失败:', error);
+        ElMessage.error('清零失败，请稍后重试');
       }
     })
     .catch(() => {

@@ -29,6 +29,11 @@ export const updateOrder = (id: number, orderModel: OrderChangeRequest) => {
     return axios.put(`/orders/${id}`, orderModel);
 };
 
+//修改8080配送状态
+export const updateDispatchStatus = (id: number) => {
+    return axios.put(`/orders/${id}/dispatch_status`);
+};
+
 // 订单项变更
 export const updateOrderItem = (itemId: number, itemModel: OrderItemChangeRequest) => {
     return axios.put(`/orders/items/${itemId}`, itemModel);

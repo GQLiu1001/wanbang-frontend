@@ -20,4 +20,9 @@ export const approveDriver = (driverId: number, data: DriverApprovalRequest) => 
 // 删除/拒绝司机
 export const rejectDriver = (driverId: number) => {
   return deliveryInstance.delete(`/driver/${driverId}`);
+};
+
+// 清零司机余额
+export const resetDriverMoney = (driverId: number) => {
+  return deliveryInstance.post(`/driver/${driverId}/reset-money`);
 }; 

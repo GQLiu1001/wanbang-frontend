@@ -2,35 +2,36 @@
 export interface DeliveryQueryParams extends PaginationParams {
     orderNo?: string;
     customerPhone?: string;
-    status?: string;
+    status?: number;
+    driverId?: number;
   }
   
   // 派送订单数据
   export interface DeliveryOrder {
     id?: number;
     orderNo: string;
-    orderId: number;
-    customerPhone: string;
-    deliveryAddress?: string;
-    deliveryStatus?: number;
-    dispatchTime?: string;
     driverId?: number;
+    customerPhone: string;
+    deliveryAddress: string;
+    deliveryStatus: number; // 1=待派送,2=待接单,3=配送中,4=已完成,5=已取消
+    deliveryFee: number;
+    deliveryNote?: string;
+    goodsWeight: number;
     createTime?: string;
     updateTime?: string;
-    orderRemark?: string;
-    totalAmount?: number;
-    orderCreateTime?: string;
   }
   
   // 派送请求参数
   export interface DispatchRequest {
     orderId: number;
+    orderNo: string;
+    customerPhone: string;
     deliveryAddress: string;
-    deliveryRemark?: string;
-    deliveryWeight: number;
+    deliveryNote?: string;
+    goodsWeight: number;
     deliveryFee: number;
-    operatorId: number;
   }
+
 // 用户登录请求参数
 export interface LoginRequest {
     username: string;
@@ -398,7 +399,8 @@ export interface AftersalePostRequest {
 export interface DriverQueryParams extends PaginationParams {
   name?: string;
   phone?: string;
-  status?: number; // 1=待审核, 2=已审核, 3=已拒绝
+  auditStatus?: number; // 0=未审核,1=已通过,2=已拒绝
+  workStatus?: number; // 1=空闲,2=忙碌,3=离线
 }
 
 // 司机信息
@@ -406,16 +408,18 @@ export interface Driver {
   id: number;
   name: string;
   phone: string;
-  status: number; // 1=待审核, 2=已审核, 3=已拒绝
-  license_number?: string;
-  vehicle_type?: string;
-  registration_time?: string;
-  approval_time?: string;
-  remark?: string;
+  avatar?: string;
+  auditStatus: number; // 0=未审核,1=已通过,2=已拒绝
+  workStatus: number; // 1=空闲,2=忙碌,3=离线
+  money: number; // 司机账户余额
+  openid?: string;
+  createTime?: string;
+  updateTime?: string;
 }
 
-// 司机审核请求
+// 司机审核请求参数
 export interface DriverApprovalRequest {
-  operator_id: number;
-  remark?: string;
+  auditStatus: number; // 1=已通过,2=已拒绝
+  auditRemark?: string;
+  auditor: string;
 }

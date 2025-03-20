@@ -4,7 +4,7 @@ import { useUserStore } from '../stores/user';
 
 // 创建专门用于配送系统的axios实例
 const deliveryInstance = axios.create({
-    baseURL: '/delivery-api', // 配送系统API地址
+    baseURL: '/delivery-api', // 配送系统API地址，确保后端代理配置了相应路径
     timeout: 10000,
     headers: { 'Content-Type': 'application/json' },
     withCredentials: true,
