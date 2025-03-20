@@ -100,11 +100,6 @@ const router = createRouter({
           component: () => import('@/views/system/SystemRoles.vue'),
         },
         {
-          path: 'delivery/dispatch',
-          name: 'delivery-dispatch',
-          component: () => import('@/views/delivery/DeliveryDispatch.vue')
-        },
-        {
           path: 'driver/approval',
           name: 'driver-approval',
           component: () => import('@/views/driver/DriverApproval.vue')

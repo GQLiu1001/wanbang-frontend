@@ -5,6 +5,7 @@ import { ref, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { getOrders, getOrderDetail, updateOrder, updateOrderItem, addOrderItem, deleteOrderItem, deleteOrder } from '@/api/order';
+import { dispatchOrder } from '@/api/delivery';
 import { useUserStore } from '@/stores/user';
 import { getInventoryByModelNumber } from '@/api/inventory';
 
@@ -98,6 +99,18 @@ const addItemForm = ref({
   price_difference: 0,
   total_pieces: undefined as number | undefined,
   source_warehouse: 1
+});
+
+// 派送订单对话框
+const dispatchDialogVisible = ref(false);
+const currentDispatchOrder = ref<Order | null>(null);
+const dispatchForm = ref({
+  orderId: 0,
+  deliveryAddress: '',
+  deliveryRemark: '',
+  deliveryWeight: 0,
+  deliveryFee: 0,
+  operatorId: 0
 });
 
 // 日期选择器选项
@@ -219,6 +232,52 @@ const handleAftersale = (order: Order) => {
       id: order.id.toString() // Convert to string explicitly
     }
   });
+};
+
+// 打开派送对话框
+const handleDispatch = (order: Order) => {
+  currentDispatchOrder.value = order;
+  dispatchForm.value = {
+    orderId: order.id,
+    deliveryAddress: '',
+    deliveryRemark: '',
+    deliveryWeight: 0,
+    deliveryFee: 0,
+    operatorId: operatorId || 0
+  };
+  dispatchDialogVisible.value = true;
+};
+
+// 提交派送请求
+const submitDispatch = async () => {
+  try {
+    if (!dispatchForm.value.deliveryAddress) {
+      ElMessage.error('配送地址不能为空');
+      return;
+    }
+
+    if (dispatchForm.value.deliveryWeight <= 0) {
+      ElMessage.error('货物吨数必须大于0');
+      return;
+    }
+
+    if (dispatchForm.value.deliveryFee < 0) {
+      ElMessage.error('配送费不能为负数');
+      return;
+    }
+
+    const response = await dispatchOrder(dispatchForm.value);
+    if (response.data && response.data.code === 200) {
+      ElMessage.success('订单派送成功');
+      dispatchDialogVisible.value = false;
+      fetchOrderList(); // 刷新订单列表
+    } else {
+      ElMessage.error(response.data?.message || '派送订单失败');
+    }
+  } catch (error) {
+    console.error('派送订单时出错:', error);
+    ElMessage.error('派送订单时出错');
+  }
 };
 
 // 编辑订单基本信息
@@ -640,6 +699,7 @@ onMounted(() => {
             <el-button type="primary" size="small" @click="handleViewDetail(scope.row)">详情</el-button>
             <el-button type="warning" size="small" @click="handleEditOrder(scope.row)">编辑</el-button>
             <el-button type="success" size="small" @click="handleAftersale(scope.row)">售后</el-button>
+            <el-button type="info" size="small" @click="handleDispatch(scope.row)">派送</el-button>
             <el-popconfirm
               title="确定要删除这个订单吗？"
               @confirm="handleDeleteOrder(scope.row.id)"
@@ -955,6 +1015,61 @@ onMounted(() => {
         <el-button type="primary" @click="saveAddItem">添加</el-button>
       </template>
     </el-dialog>
+
+    <!-- 派送订单对话框 -->
+    <el-dialog
+        v-model="dispatchDialogVisible"
+        title="派送订单"
+        width="50%"
+        destroy-on-close
+    >
+      <div v-if="currentDispatchOrder" class="order-info-summary">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="订单编号">{{ currentDispatchOrder.order_no }}</el-descriptions-item>
+          <el-descriptions-item label="客户手机号">{{ currentDispatchOrder.customer_phone }}</el-descriptions-item>
+          <el-descriptions-item label="订单总金额">{{ currentDispatchOrder.total_amount.toFixed(2) }} 元</el-descriptions-item>
+          <el-descriptions-item label="创建时间">
+            {{ new Date(currentDispatchOrder.order_create_time).toLocaleString() }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <el-form :model="dispatchForm" label-width="120px">
+        <el-form-item label="配送地址" required>
+          <el-input
+              v-model="dispatchForm.deliveryAddress"
+              placeholder="请输入配送地址"
+          />
+        </el-form-item>
+        <el-form-item label="配送备注">
+          <el-input
+              v-model="dispatchForm.deliveryRemark"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入配送备注（可选）"
+          />
+        </el-form-item>
+        <el-form-item label="货物吨数" required>
+          <el-input
+              v-model.number="dispatchForm.deliveryWeight"
+              placeholder="请输入货物吨数"
+              type="number"
+              :min="0"
+          />
+        </el-form-item>
+        <el-form-item label="配送费" required>
+          <el-input
+              v-model.number="dispatchForm.deliveryFee"
+              placeholder="请输入配送费"
+              type="number"
+              :min="0"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dispatchDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitDispatch">提交</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -1038,5 +1153,36 @@ onMounted(() => {
 
 .negative {
   color: #f56c6c;
+}
+
+.button-group {
+  display: flex;
+  gap: 5px;
+}
+
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.no-data {
+  text-align: center;
+  padding: 30px;
+  color: #909399;
+}
+
+.order-items-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 20px 0 10px;
+}
+
+/* 派送对话框样式 */
+.order-info-summary {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
 }
 </style>
