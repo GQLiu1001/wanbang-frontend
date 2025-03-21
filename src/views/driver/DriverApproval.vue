@@ -101,7 +101,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getPendingDrivers, approveDriver, rejectDriver, resetDriverMoney } from '@/api/driver';
+import { getAllDrivers, approveDriver, rejectDriver, resetDriverMoney } from '@/api/driver';
 import { useUserStore } from '@/stores/user';
 import type { DriverQueryParams, Driver, DriverApprovalRequest } from '@/types/interfaces';
 
@@ -195,7 +195,7 @@ const loadDrivers = async () => {
     // 获取所有司机，不再使用状态筛选
     const params = {};
     
-    const response = await getPendingDrivers(params);
+    const response = await getAllDrivers(params);
     const data = response.data;
     if (data.code === 200 && data.data) {
       driverList.value = data.data.items || data.data;
@@ -298,7 +298,13 @@ const handleReject = (row: Driver) => {
           return;
         }
 
-        const response = await rejectDriver(row.id);
+        const approvalData: DriverApprovalRequest = {
+          auditStatus: 2, // 2=已拒绝
+          auditRemark: '管理员拒绝',
+          auditor: userStore.getUserInfo()?.username || 'unknown'
+        };
+
+        const response = await rejectDriver(row.id, approvalData);
         if (response.status === 200 || response.status === 204) {
           ElMessage.success('已拒绝该司机申请');
           await loadDrivers();
