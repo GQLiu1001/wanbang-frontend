@@ -101,7 +101,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getAllDrivers, approveDriver, rejectDriver, resetDriverMoney } from '@/api/driver';
+import { getAllDrivers, approveDriver, rejectDriver, resetDriverMoney, deleteDriver } from '@/api/driver';
 import { useUserStore } from '@/stores/user';
 import type { DriverQueryParams, Driver, DriverApprovalRequest } from '@/types/interfaces';
 
@@ -346,10 +346,15 @@ const handleDelete = (row: Driver) => {
           return;
         }
 
-        // 这里应该添加删除司机的API调用
-        // const response = await deleteDriver(row.id);
-        ElMessage.success('已删除该司机');
-        await loadDrivers();
+        // 使用删除司机的API调用
+        const auditor = userStore.getUserInfo()?.username || 'unknown';
+        const response = await deleteDriver(row.id, auditor);
+        if (response.status === 200 || response.status === 204) {
+          ElMessage.success('已删除该司机');
+          await loadDrivers();
+        } else {
+          throw new Error(response.data?.message || '删除失败');
+        }
       } catch (error) {
         console.error('删除失败:', error);
         ElMessage.error('删除失败，请稍后重试');

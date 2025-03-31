@@ -22,6 +22,11 @@ export const rejectDriver = (driverId: number, data: DriverApprovalRequest) => {
   return deliveryInstance.put(`/delivery/drivers/${driverId}/rejection`, data);
 };
 
+// 删除司机
+export const deleteDriver = (driverId: number, auditor: string) => {
+  return deliveryInstance.delete(`/delivery/drivers/${driverId}/delete`, { data: { auditor } });
+};
+
 // 清零司机余额 (这个接口在文档中没有明确定义，保留原有实现)
 export const resetDriverMoney = (driverId: number) => {
   return deliveryInstance.post(`/driver/${driverId}/reset-money`);

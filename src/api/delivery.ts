@@ -46,3 +46,8 @@ export const approveDriver = (driverId: number, approval: DriverApprovalRequest)
 export const rejectDriver = (driverId: number, approval: DriverApprovalRequest) => {
   return deliveryInstance.put(`/delivery/drivers/${driverId}/rejection`, approval);
 };
+
+// 删除司机
+export const deleteDriver = (driverId: number, auditor: string) => {
+  return deliveryInstance.delete(`/delivery/drivers/${driverId}/delete`, { data: { auditor } });
+};

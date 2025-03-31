@@ -24,7 +24,10 @@ interface OrderData {
 
 // 扩展DeliveryOrder接口
 interface EnhancedDeliveryOrder extends DeliveryOrder {
-  deliveryStatus: number;
+  orderId?: number;
+  totalAmount?: number;
+  orderCreateTime?: string;
+  orderUpdateTime?: string;
 }
 
 // 获取用户信息
@@ -80,11 +83,12 @@ const dispatchDialogVisible = ref(false);
 const currentOrder = ref<EnhancedDeliveryOrder | null>(null);
 const dispatchForm = ref<DispatchRequest>({
   orderId: 0,
+  orderNo: '',
+  customerPhone: '',
   deliveryAddress: '',
-  deliveryRemark: '',
-  deliveryWeight: 0,
-  deliveryFee: 0,
-  operatorId: operatorId || 0
+  deliveryNote: '',
+  goodsWeight: 0,
+  deliveryFee: 0
 });
 
 // 配送详情对话框
@@ -225,11 +229,12 @@ const handleDispatch = (row: EnhancedDeliveryOrder) => {
   currentOrder.value = row;
   dispatchForm.value = {
     orderId: row.id || 0,
+    orderNo: row.orderNo || '',
+    customerPhone: row.customerPhone || '',
     deliveryAddress: row.deliveryAddress || '',
-    deliveryRemark: '',
-    deliveryWeight: 0,
-    deliveryFee: 0,
-    operatorId: operatorId || 0
+    deliveryNote: row.deliveryNote || '',
+    goodsWeight: row.goodsWeight || 0,
+    deliveryFee: row.deliveryFee || 0
   };
   dispatchDialogVisible.value = true;
 };
@@ -241,7 +246,7 @@ const submitDispatch = async () => {
     return;
   }
 
-  if (dispatchForm.value.deliveryWeight <= 0) {
+  if (dispatchForm.value.goodsWeight <= 0) {
     ElMessage.error('货物吨数必须大于0');
     return;
   }
@@ -454,7 +459,7 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="配送备注">
           <el-input
-            v-model="dispatchForm.deliveryRemark"
+            v-model="dispatchForm.deliveryNote"
             type="textarea"
             placeholder="请输入配送备注"
             :rows="3"
@@ -462,7 +467,7 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="货物吨数" required>
           <el-input-number
-            v-model="dispatchForm.deliveryWeight"
+            v-model="dispatchForm.goodsWeight"
             :min="0.1"
             :step="0.1"
             :precision="1"

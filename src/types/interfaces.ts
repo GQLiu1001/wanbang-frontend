@@ -11,6 +11,8 @@ export interface DeliveryQueryParams extends PaginationParams {
     id?: number;
     orderNo: string;
     driverId?: number;
+    driverName?: string;
+    driverPhone?: string;
     customerPhone: string;
     deliveryAddress: string;
     deliveryStatus: number; // 1=待派送,2=待接单,3=配送中,4=已完成,5=已取消
