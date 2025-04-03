@@ -14,12 +14,12 @@ export const getDriverDetail = (driverId: number) => {
 
 // 审核司机资格
 export const approveDriver = (driverId: number, data: DriverApprovalRequest) => {
-  return deliveryInstance.put(`/delivery/drivers/${driverId}/approval`, data);
+  return deliveryInstance.put(`/delivery/drivers/${driverId}/approval`, null, { params: data });
 };
 
 // 拒绝司机资格
 export const rejectDriver = (driverId: number, data: DriverApprovalRequest) => {
-  return deliveryInstance.put(`/delivery/drivers/${driverId}/rejection`, data);
+  return deliveryInstance.put(`/delivery/drivers/${driverId}/rejection`, null, { params: data });
 };
 
 // 删除司机

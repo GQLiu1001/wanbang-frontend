@@ -32,19 +32,19 @@ export const getDrivers = (params: DriverQueryParams) => {
   return deliveryInstance.get('/delivery/drivers', { params });
 };
 
-// 获取司机详情
-export const getDriverDetail = (driverId: number) => {
-  return deliveryInstance.get(`/delivery/drivers/${driverId}`);
-};
+// // 获取司机详情
+// export const getDriverDetail = (driverId: number) => {
+//   return deliveryInstance.get(`/delivery/drivers/${driverId}`);
+// };
 
 // 审核司机资格
 export const approveDriver = (driverId: number, approval: DriverApprovalRequest) => {
-  return deliveryInstance.put(`/delivery/drivers/${driverId}/approval`, approval);
+  return deliveryInstance.put(`/delivery/drivers/${driverId}/approval`, null, { params: approval });
 };
 
 // 拒绝司机资格
 export const rejectDriver = (driverId: number, approval: DriverApprovalRequest) => {
-  return deliveryInstance.put(`/delivery/drivers/${driverId}/rejection`, approval);
+  return deliveryInstance.put(`/delivery/drivers/${driverId}/rejection`, null, { params: approval });
 };
 
 // 删除司机
