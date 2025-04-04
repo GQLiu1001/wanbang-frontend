@@ -745,13 +745,6 @@ onMounted(() => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="派送状态" width="100">
-        <template #default="{ row }">
-          <el-tag :type="getDispatchStatusType(row.dispatch_status)">
-            {{ getDispatchStatusText(row.dispatch_status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
       <el-table-column label="操作" width="140" fixed="right">
         <template #default="scope">
           <div class="button-group-vertical">
@@ -826,11 +819,6 @@ onMounted(() => {
           <el-descriptions-item label="售后状态">
             <el-tag :type="currentOrderDetail.aftersale_status ? (currentOrderDetail.aftersale_status === 1 ? 'warning' : 'success') : 'info'">
               {{ currentOrderDetail.aftersale_status ? aftersaleStatusMap[currentOrderDetail.aftersale_status] : '无' }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="派送状态">
-            <el-tag :type="getDispatchStatusType(currentOrderDetail.dispatch_status)">
-              {{ getDispatchStatusText(currentOrderDetail.dispatch_status) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="订单备注" :span="3">

@@ -100,16 +100,16 @@ const systemErrorMessage = ref('');
 
 // 派送状态映射
 const deliveryStatusMap = {
-  0: { text: '未派送', type: 'info' },
-  1: { text: '待接单', type: 'warning' },
-  2: { text: '配送中', type: 'primary' },
-  3: { text: '已完成', type: 'success' },
-  4: { text: '已取消', type: 'danger' }
+  1: { text: '待派送', type: 'info' },
+  2: { text: '待接单', type: 'warning' },
+  3: { text: '配送中', type: 'primary' },
+  4: { text: '已完成', type: 'success' },
+  5: { text: '已取消', type: 'danger' }
 };
 
 // 获取派送状态文本
 const getDeliveryStatusText = (status: number | undefined) => {
-  if (status === undefined) return '未派送';
+  if (status === undefined) return '未分配';
   return deliveryStatusMap[status as keyof typeof deliveryStatusMap]?.text || '未知状态';
 };
 
@@ -171,22 +171,26 @@ const loadPendingOrders = async () => {
       isDeliverySystemReady.value = true;
       
       // 解析返回的派送订单数据
-      const orders = response.data.data.items || [];
-      
-      tableData.value = orders.map((order: any) => ({
-        id: order.id,
-        orderId: order.order_id,
-        orderNo: order.order_no,
-        customerPhone: order.customer_phone,
-        totalAmount: order.total_amount,
-        orderCreateTime: order.create_time,
-        orderRemark: order.order_remark,
-        deliveryAddress: order.delivery_address || '',
-        deliveryStatus: order.delivery_status,
-        deliveryWeight: order.delivery_weight,
-        deliveryFee: order.delivery_fee
-      }));
-      total.value = response.data.data.total || 0;
+      const responseData = response.data.data;
+      if (responseData && responseData.records) {
+        tableData.value = responseData.records.map((order: any) => ({
+          id: order.id,
+          orderNo: order.orderNo,
+          customerPhone: order.customerPhone,
+          deliveryAddress: order.deliveryAddress || '',
+          deliveryStatus: order.deliveryStatus,
+          deliveryFee: order.deliveryFee,
+          goodsWeight: order.goodsWeight,
+          deliveryNote: order.deliveryNote,
+          driverId: order.driverId,
+          createTime: order.createTime,
+          updateTime: order.updateTime
+        }));
+        total.value = responseData.total || 0;
+      } else {
+        tableData.value = [];
+        total.value = 0;
+      }
     } else {
       ElMessage.error(response.data?.message || '获取派送订单列表失败');
       tableData.value = [];
@@ -357,22 +361,17 @@ onMounted(() => {
       highlight-current-row
       header-cell-class-name="table-header"
     >
-      <el-table-column prop="orderId" label="订单ID" width="80" align="center" />
+      <el-table-column prop="id" label="订单ID" width="80" align="center" />
       <el-table-column prop="orderNo" label="订单编号" width="180" align="center" />
       <el-table-column prop="customerPhone" label="客户手机号" width="150" align="center" />
-      <el-table-column prop="totalAmount" label="订单金额" width="120" align="center">
-        <template #default="{ row }">
-          {{ row.totalAmount ? row.totalAmount.toFixed(2) + ' 元' : '-' }}
-        </template>
-      </el-table-column>
       <el-table-column prop="deliveryFee" label="配送费" width="100" align="center">
         <template #default="{ row }">
           {{ row.deliveryFee ? row.deliveryFee.toFixed(2) + ' 元' : '-' }}
         </template>
       </el-table-column>
-      <el-table-column prop="deliveryWeight" label="货物吨数" width="100" align="center">
+      <el-table-column prop="goodsWeight" label="货物吨数" width="100" align="center">
         <template #default="{ row }">
-          {{ row.deliveryWeight ? row.deliveryWeight.toFixed(1) + ' 吨' : '-' }}
+          {{ row.goodsWeight ? row.goodsWeight.toFixed(1) + ' 吨' : '-' }}
         </template>
       </el-table-column>
       <el-table-column prop="deliveryStatus" label="派送状态" width="120" align="center">
@@ -382,22 +381,22 @@ onMounted(() => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="orderCreateTime" label="创建时间" width="180" align="center">
+      <el-table-column prop="createTime" label="创建时间" width="180" align="center">
         <template #default="{ row }">
-          {{ formatDateTime(row.orderCreateTime) }}
+          {{ formatDateTime(row.createTime) }}
         </template>
       </el-table-column>
       <el-table-column prop="deliveryAddress" label="配送地址" min-width="200" :show-overflow-tooltip="true" />
       <el-table-column label="操作" width="120" fixed="right" align="center">
         <template #default="{ row }">
           <el-button
-            v-if="row.deliveryStatus === 0"
+            v-if="row.deliveryStatus === 1 || row.deliveryStatus === undefined || row.deliveryStatus === null"
             type="primary"
             size="small"
             @click="handleDispatch(row)"
           >派送</el-button>
           <el-button
-            v-else-if="row.deliveryStatus === 1 || row.deliveryStatus === 2"
+            v-else-if="row.deliveryStatus === 2 || row.deliveryStatus === 3"
             type="warning"
             size="small"
             @click="showDeliveryDetails(row)"
@@ -441,11 +440,11 @@ onMounted(() => {
         <el-descriptions :column="2" border>
           <el-descriptions-item label="订单编号">{{ currentOrder.orderNo }}</el-descriptions-item>
           <el-descriptions-item label="客户手机号">{{ currentOrder.customerPhone }}</el-descriptions-item>
-          <el-descriptions-item label="订单总金额">
-            {{ currentOrder.totalAmount ? currentOrder.totalAmount.toFixed(2) + ' 元' : '-' }}
+          <el-descriptions-item label="配送费">
+            {{ currentOrder.deliveryFee ? currentOrder.deliveryFee.toFixed(2) + ' 元' : '-' }}
           </el-descriptions-item>
           <el-descriptions-item label="创建时间">
-            {{ formatDateTime(currentOrder.orderCreateTime) }}
+            {{ formatDateTime(currentOrder.createTime) }}
           </el-descriptions-item>
         </el-descriptions>
       </div>
@@ -501,8 +500,8 @@ onMounted(() => {
         <el-descriptions :column="2" border>
           <el-descriptions-item label="订单编号">{{ currentOrder.orderNo }}</el-descriptions-item>
           <el-descriptions-item label="客户手机号">{{ currentOrder.customerPhone }}</el-descriptions-item>
-          <el-descriptions-item label="订单总金额">
-            {{ currentOrder.totalAmount ? currentOrder.totalAmount.toFixed(2) + ' 元' : '-' }}
+          <el-descriptions-item label="配送费">
+            {{ currentOrder.deliveryFee ? currentOrder.deliveryFee.toFixed(2) + ' 元' : '-' }}
           </el-descriptions-item>
           <el-descriptions-item label="配送地址">{{ currentOrder.deliveryAddress || '-' }}</el-descriptions-item>
           <el-descriptions-item label="派送状态">
@@ -511,7 +510,7 @@ onMounted(() => {
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="创建时间">
-            {{ formatDateTime(currentOrder.orderCreateTime) }}
+            {{ formatDateTime(currentOrder.createTime) }}
           </el-descriptions-item>
         </el-descriptions>
       </div>

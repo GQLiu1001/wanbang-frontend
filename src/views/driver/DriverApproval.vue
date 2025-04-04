@@ -113,64 +113,9 @@ const driverList = ref<Driver[]>([]);
 const total = ref(0);
 const currentDriver = ref<Driver | null>(null);
 const approvalRemark = ref('');
-const useMockData = ref(true); // 添加一个标志来控制是否使用模拟数据
 
 // 添加管理员权限检查
 const isAdmin = computed(() => userStore.getUserInfo()?.role_key === 'admin');
-
-// 模拟司机数据
-const mockDrivers: Driver[] = [
-  {
-    id: 1001,
-    name: '张三',
-    phone: '13812345678',
-    auditStatus: 0,
-    workStatus: 1,
-    money: 1000,
-    createTime: new Date().toISOString(),
-    updateTime: new Date().toISOString()
-  },
-  {
-    id: 1002,
-    name: '李四',
-    phone: '13987654321',
-    auditStatus: 0,
-    workStatus: 1,
-    money: 2000,
-    createTime: new Date().toISOString(),
-    updateTime: new Date().toISOString()
-  },
-  {
-    id: 1003,
-    name: '王五',
-    phone: '13567891234',
-    auditStatus: 1,
-    workStatus: 2,
-    money: 3000,
-    createTime: new Date().toISOString(),
-    updateTime: new Date().toISOString()
-  },
-  {
-    id: 1004,
-    name: '赵六',
-    phone: '13612378945',
-    auditStatus: 2,
-    workStatus: 3,
-    money: 0,
-    createTime: new Date().toISOString(),
-    updateTime: new Date().toISOString()
-  },
-  {
-    id: 1005,
-    name: '陈七',
-    phone: '13712345670',
-    auditStatus: 1,
-    workStatus: 1,
-    money: 5000,
-    createTime: new Date().toISOString(),
-    updateTime: new Date().toISOString()
-  }
-];
 
 const queryForm = reactive<DriverQueryParams>({
   auditStatus: 0, // 默认查询未审核的司机
@@ -181,25 +126,14 @@ const operatorId = computed(() => userStore.getUserInfo()?.id || 0);
 const loadDrivers = async () => {
   loading.value = true;
   try {
-    if (useMockData.value) {
-      // 使用模拟数据
-      setTimeout(() => {
-        // 显示所有司机，不再按状态筛选
-        driverList.value = mockDrivers;
-        total.value = driverList.value.length;
-        loading.value = false;
-      }, 500); // 模拟网络延迟
-      return;
-    }
-
     // 获取所有司机，不再使用状态筛选
     const params = {};
     
     const response = await getAllDrivers(params);
     const data = response.data;
     if (data.code === 200 && data.data) {
-      driverList.value = data.data.items || data.data;
-      total.value = driverList.value.length;
+      driverList.value = data.data.records || data.data;
+      total.value = data.data.total || driverList.value.length;
     } else {
       driverList.value = [];
       total.value = 0;
@@ -211,9 +145,7 @@ const loadDrivers = async () => {
     driverList.value = [];
     total.value = 0;
   } finally {
-    if (!useMockData.value) {
-      loading.value = false;
-    }
+    loading.value = false;
   }
 };
 
@@ -231,22 +163,6 @@ const confirmApprove = async () => {
 
   approvalLoading.value = true;
   try {
-    if (useMockData.value) {
-      // 使用模拟数据时，直接更新本地数据
-      setTimeout(() => {
-        const index = mockDrivers.findIndex(driver => driver.id === currentDriver.value?.id);
-        if (index !== -1) {
-          mockDrivers[index].auditStatus = 1;
-          mockDrivers[index].updateTime = new Date().toISOString();
-        }
-        ElMessage.success('司机审核通过成功');
-        approveDialogVisible.value = false;
-        loadDrivers();
-        approvalLoading.value = false;
-      }, 500);
-      return;
-    }
-
     const approvalData: DriverApprovalRequest = {
       auditStatus: 1, // 1=已通过
       auditRemark: approvalRemark.value,
@@ -266,9 +182,7 @@ const confirmApprove = async () => {
     console.error('审核失败:', error);
     ElMessage.error('审核失败，请稍后重试');
   } finally {
-    if (!useMockData.value) {
-      approvalLoading.value = false;
-    }
+    approvalLoading.value = false;
   }
 };
 
@@ -284,20 +198,6 @@ const handleReject = (row: Driver) => {
   )
     .then(async () => {
       try {
-        if (useMockData.value) {
-          // 使用模拟数据时，直接更新本地数据
-          setTimeout(() => {
-            const index = mockDrivers.findIndex(driver => driver.id === row.id);
-            if (index !== -1) {
-              mockDrivers[index].auditStatus = 2;
-              mockDrivers[index].updateTime = new Date().toISOString();
-            }
-            ElMessage.success('已拒绝该司机申请');
-            loadDrivers();
-          }, 500);
-          return;
-        }
-
         const approvalData: DriverApprovalRequest = {
           auditStatus: 2, // 2=已拒绝
           auditRemark: '管理员拒绝',
@@ -333,19 +233,6 @@ const handleDelete = (row: Driver) => {
   )
     .then(async () => {
       try {
-        if (useMockData.value) {
-          // 使用模拟数据时，直接更新本地数据
-          setTimeout(() => {
-            const index = mockDrivers.findIndex(driver => driver.id === row.id);
-            if (index !== -1) {
-              mockDrivers.splice(index, 1);
-            }
-            ElMessage.success('已删除该司机');
-            loadDrivers();
-          }, 500);
-          return;
-        }
-
         // 使用删除司机的API调用
         const auditor = userStore.getUserInfo()?.username || 'unknown';
         const response = await deleteDriver(row.id, auditor);
@@ -383,33 +270,33 @@ const handleResetMoney = (row: Driver) => {
   )
     .then(async () => {
       try {
-        if (useMockData.value) {
-          // 使用模拟数据时，直接更新本地数据
-          setTimeout(() => {
-            const index = mockDrivers.findIndex(driver => driver.id === row.id);
-            if (index !== -1) {
-              mockDrivers[index].money = 0;
-            }
-            ElMessage.success('已清零该司机账户余额');
-            loadDrivers();
-          }, 500);
-          return;
-        }
-
-        const response = await resetDriverMoney(row.id);
+        console.log('开始执行清零操作，司机ID:', row.id);
+        const auditor = userStore.getUserInfo()?.username || 'unknown';
+        console.log('操作人:', auditor);
+        
+        const response = await resetDriverMoney(row.id, auditor);
+        console.log('清零API响应:', response);
+        
         if (response.status === 200 || response.status === 204) {
           ElMessage.success('已清零该司机账户余额');
           await loadDrivers();
         } else {
+          console.error('清零请求成功但返回状态码不符合预期:', response);
           throw new Error(response.data?.message || '清零失败');
         }
-      } catch (error) {
-        console.error('清零失败:', error);
-        ElMessage.error('清零失败，请稍后重试');
+      } catch (error: any) {
+        console.error('清零失败, 详细信息:', error);
+        console.error('错误消息:', error.message);
+        if (error.response) {
+          console.error('响应状态:', error.response.status);
+          console.error('响应数据:', error.response.data);
+        }
+        ElMessage.error(`清零失败，请稍后重试: ${error.message}`);
       }
     })
     .catch(() => {
       // 用户取消操作
+      console.log('用户取消了清零操作');
     });
 };
 
