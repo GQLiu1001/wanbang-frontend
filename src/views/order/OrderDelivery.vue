@@ -307,8 +307,8 @@ onMounted(() => {
     <hr>
     
     <!-- 搜索区域 -->
-    <el-row :gutter="20" class="search-section">
-      <el-col :span="8">
+    <el-card class="search-section">
+      <el-form :inline="true" @submit.prevent="loadPendingOrders">
         <el-form-item label="按日期筛选">
           <el-date-picker
             v-model="searchDateRange"
@@ -317,24 +317,21 @@ onMounted(() => {
             start-placeholder="开始日期"
             end-placeholder="结束日期"
             :picker-options="pickerOptions"
-            @change="loadPendingOrders"
           />
         </el-form-item>
-      </el-col>
-      <el-col :span="8">
         <el-form-item label="按手机号筛选">
           <el-input
             v-model="searchPhone"
             placeholder="输入客户手机号"
             clearable
-            @input="loadPendingOrders"
           />
         </el-form-item>
-      </el-col>
-      <el-col :span="4">
-        <el-button @click="resetSearch">清除筛选</el-button>
-      </el-col>
-    </el-row>
+        <el-form-item>
+          <el-button type="primary" @click="loadPendingOrders">搜索</el-button>
+          <el-button @click="resetSearch">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
     
     <!-- 系统未就绪提示 -->
     <el-alert
@@ -530,6 +527,15 @@ onMounted(() => {
 
 .search-section {
   margin-bottom: 20px;
+  padding: 15px;
+}
+
+:deep(.el-form--inline .el-form-item) {
+  margin-right: 20px;
+}
+
+:deep(.el-date-editor.el-input__inner) {
+  width: 350px;
 }
 
 .table-card {

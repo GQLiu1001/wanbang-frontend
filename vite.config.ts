@@ -16,9 +16,9 @@ export default defineConfig({
     proxy: {
       // 主系统的代理
       '/api': {
-        target: 'http://localhost:8080/api/',
+        target: 'http://localhost:8080',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        // rewrite: (path) => path.replace(/^\\/api/, '')
       },
       // 配送系统的代理
       '/delivery-api': {

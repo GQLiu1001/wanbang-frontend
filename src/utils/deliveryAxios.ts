@@ -14,11 +14,30 @@ const deliveryInstance = axios.create({
 deliveryInstance.interceptors.request.use(
     config => {
         const userStore = useUserStore();
-        const token = userStore.getToken();
+        // 尝试从localStorage中直接获取token
+        let token = userStore.getToken();
+        // 如果没有找到token，尝试从satoken中获取
+        if (!token) {
+            const satokenValue = localStorage.getItem('satoken');
+            if (satokenValue) {
+                token = satokenValue;
+                console.log('从satoken获取的token:', token);
+            }
+        }
+        
+        console.log('配送系统请求使用的token:', token);
         
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
+        } else {
+            console.warn('配送系统请求缺少Authorization token');
         }
+        
+        console.log('配送系统请求配置:', {
+            url: config.url,
+            method: config.method,
+            headers: config.headers
+        });
         
         return config;
     },
@@ -30,6 +49,16 @@ deliveryInstance.interceptors.request.use(
 // 响应拦截器
 deliveryInstance.interceptors.response.use(
     response => {
+        // 检查响应中的业务状态码
+        if (response.data && response.data.code !== undefined && response.data.code !== 200) {
+            console.warn('配送系统API响应业务状态码非200:', {
+                url: response.config.url,
+                status: response.status,
+                businessCode: response.data.code,
+                message: response.data.message,
+                data: response.data.data
+            });
+        }
         return response;
     },
     error => {

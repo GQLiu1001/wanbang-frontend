@@ -105,7 +105,7 @@
 import { ref } from 'vue';
 import { useUserStore } from '@/stores/user';
 import { loginService, registerService, resetPasswordService } from '@/api/auth';
-import type { LoginRequest, RegisterRequest, ResetPasswordRequest } from '@/types/interfaces.ts';
+import type { LoginRequest, RegisterRequest, ResetPasswordRequest } from '@/types/interfaces';
 import router from '@/router';
 import { ElMessage } from 'element-plus';
 
@@ -161,8 +161,11 @@ const handleLogin = async () => {
     const cookieMatch = document.cookie.match(/satoken=([^;]+)/);
     let saToken = cookieMatch ? cookieMatch[1] : '';
     console.log('从 cookie 中提取的 satoken:', saToken);
-    localStorage.setItem('satoken', saToken)
-    // ... satoken 处理逻辑 ...
+    localStorage.setItem('satoken', saToken);
+    
+    // 同时保存token用于配送系统API调用
+    localStorage.setItem('token', saToken);
+    userStore.setToken(saToken);
 
     // 从响应体获取用户信息
     if (response.data.code === 200) {
@@ -232,7 +235,7 @@ const handleRegister = async () => {
     registerForm.value = { username: '', password: '', phone: '' };
   } catch (error: any) {
     console.error('注册失败:', error);
-    const errorMsg = error.response?.data?.message || error.message || '注册失败，请稍后重试';
+    const errorMsg = error.response?.data?.message || (error as Error).message || '注册失败，请稍后重试';
     ElMessage.error(errorMsg);
   }
 };

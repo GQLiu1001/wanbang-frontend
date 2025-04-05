@@ -236,11 +236,15 @@ const handleDelete = (row: Driver) => {
         // 使用删除司机的API调用
         const auditor = userStore.getUserInfo()?.username || 'unknown';
         const response = await deleteDriver(row.id, auditor);
-        if (response.status === 200 || response.status === 204) {
+        
+        // 检查响应数据中的业务码
+        if (response.data && response.data.code === 200) {
           ElMessage.success('已删除该司机');
           await loadDrivers();
         } else {
-          throw new Error(response.data?.message || '删除失败');
+          // 显示后端返回的具体错误信息
+          ElMessage.error(response.data?.message || response.data?.data || '删除失败');
+          console.error('删除失败，业务状态码:', response.data?.code, '错误信息:', response.data?.message, '详情:', response.data?.data);
         }
       } catch (error) {
         console.error('删除失败:', error);
@@ -277,12 +281,14 @@ const handleResetMoney = (row: Driver) => {
         const response = await resetDriverMoney(row.id, auditor);
         console.log('清零API响应:', response);
         
-        if (response.status === 200 || response.status === 204) {
+        // 检查响应数据中的业务码
+        if (response.data && response.data.code === 200) {
           ElMessage.success('已清零该司机账户余额');
           await loadDrivers();
         } else {
-          console.error('清零请求成功但返回状态码不符合预期:', response);
-          throw new Error(response.data?.message || '清零失败');
+          // 显示后端返回的具体错误信息
+          ElMessage.error(response.data?.message || response.data?.data || '清零失败');
+          console.error('清零失败，业务状态码:', response.data?.code, '错误信息:', response.data?.message, '详情:', response.data?.data);
         }
       } catch (error: any) {
         console.error('清零失败, 详细信息:', error);
