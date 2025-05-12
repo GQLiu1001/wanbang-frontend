@@ -3,33 +3,6 @@
     <h1>用户管理</h1>
     <hr />
     <el-form :model="userForm" label-width="100px" class="user-form">
-      <el-form-item label="" class="avatar-item">
-        <div class="avatar-uploader">
-          <div v-if="userForm.avatar" class="avatar-wrapper">
-            <img :src="userForm.avatar" class="avatar" @click="triggerFileInput" />
-            <div class="avatar-hover-text">点击修改</div>
-            <el-button
-                type="danger"
-                size="small"
-                class="remove-avatar-btn"
-                @click="removeAvatar"
-            >
-              删除
-            </el-button>
-          </div>
-          <div v-else class="avatar-uploader-icon" @click="triggerFileInput">
-            <el-icon><Plus /></el-icon>
-          </div>
-          <input
-              type="file"
-              ref="fileInputRef"
-              style="display: none"
-              accept="image/*"
-              @change="handleFileChange"
-          />
-        </div>
-      </el-form-item>
-
       <el-form-item label="用户名" required>
         <el-input v-model="userForm.username" placeholder="请输入用户名" />
       </el-form-item>
@@ -77,8 +50,7 @@
 import { onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
-import { updateUser, uploadAvatar } from '@/api/user';
-import { Plus } from '@element-plus/icons-vue';
+import { updateUser } from '@/api/user';
 import router from '@/router';
 
 // 获取当前用户信息
@@ -90,12 +62,8 @@ if (!currentUser) {
   router.push('/login');
 }
 
-// 文件输入引用
-const fileInputRef = ref<HTMLInputElement | null>(null);
-
 // 用户表单数据 - 修改字段名与API一致
 const userForm = ref({
-  avatar: currentUser?.avatar || '',
   username: currentUser?.username || '',
   phone: currentUser?.phone || '',
   oldPassword: '',  // 旧密码
@@ -105,67 +73,6 @@ const userForm = ref({
 
 // 用户 ID
 const userId = ref<number>(currentUser?.id || 0);
-
-// 触发文件输入点击
-const triggerFileInput = () => {
-  fileInputRef.value?.click();
-};
-
-// 验证文件
-const validateFile = (file: File): boolean => {
-  const isImage = file.type.startsWith('image/');
-  if (!isImage) {
-    ElMessage.error('只能上传图片文件');
-    return false;
-  }
-  const isLt2M = file.size / 1024 / 1024 < 2; // 限制 2MB
-  if (!isLt2M) {
-    ElMessage.error('上传图片大小不能超过 2MB');
-    return false;
-  }
-  return true;
-};
-
-// 处理文件变更 - 使用API模块中的uploadAvatar函数
-const handleFileChange = async (event: Event) => {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-
-  if (!file) return;
-
-  if (!validateFile(file)) {
-    // 重置文件输入
-    if (fileInputRef.value) {
-      fileInputRef.value.value = '';
-    }
-    return;
-  }
-
-  try {
-    const response = await uploadAvatar(file);
-
-    if (response.data.code === 200) {
-      userForm.value.avatar = response.data.data.fileUrl;
-      ElMessage.success('头像上传成功');
-    } else {
-      throw new Error(response.data.message || '上传失败');
-    }
-  } catch (error: any) {
-    console.error('头像上传失败:', error);
-    ElMessage.error(`头像上传失败: ${error.message || '未知错误'}`);
-  } finally {
-    // 重置文件输入，允许再次选择相同文件
-    if (fileInputRef.value) {
-      fileInputRef.value.value = '';
-    }
-  }
-};
-
-// 删除头像
-const removeAvatar = () => {
-  userForm.value.avatar = '';
-  ElMessage.success('头像已删除');
-};
 
 // 提交用户信息
 const submitUserInfo = async () => {
@@ -207,13 +114,11 @@ const submitUserInfo = async () => {
 
     // 构建提交数据 - 按API文档格式
     const submitData: {
-      avatar: string;
       username: string;
       phone: string;
       oldPassword?: string;
       password?: string;
     } = {
-      avatar: userForm.value.avatar || '',
       username: userForm.value.username,
       phone: userForm.value.phone,
     };
@@ -229,13 +134,14 @@ const submitUserInfo = async () => {
 
     if (response.data.code === 200) {
       // 更新本地存储的用户信息
-      userStore.setUserInfo({
+      const updatedUserInfo = {
         ...currentUser,
         id: userId.value,
         username: userForm.value.username,
-        avatar: userForm.value.avatar || '',
         phone: userForm.value.phone,
-      });
+        avatar: undefined,
+      };
+      userStore.setUserInfo(updatedUserInfo);
 
       ElMessage.success('用户信息更新成功');
 
@@ -257,7 +163,6 @@ const submitUserInfo = async () => {
 // 重置表单
 const resetForm = () => {
   userForm.value = {
-    avatar: currentUser?.avatar || '',
     username: currentUser?.username || '',
     phone: currentUser?.phone || '',
     oldPassword: '',
@@ -285,87 +190,6 @@ const resetForm = () => {
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 20px;
-}
-
-.avatar-item {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  margin-bottom: 20px;
-}
-
-.avatar-uploader {
-  border-radius: 6px;
-  width: 120px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-}
-
-.avatar-uploader:hover {
-  border-color: #409eff;
-}
-
-.avatar-uploader-icon {
-  font-size: 28px;
-  color: #8c939d;
-  width: 120px;
-  height: 120px;
-  line-height: 120px;
-  text-align: center;
-  border: 2px dashed #dcdfe6;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.avatar-wrapper {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.avatar {
-  width: 120px;
-  height: 120px;
-  display: block;
-  object-fit: cover;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: transform 0.3s, opacity 0.3s;
-}
-
-.avatar:hover {
-  opacity: 0.8;
-  transform: scale(1.1); /* 放大效果 */
-  transform-origin: center; /* 从中心放大 */
-}
-
-.avatar-hover-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: rgba(0, 0, 0, 0.5);
-  color: white;
-  padding: 5px 10px;
-  border-radius: 4px;
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-}
-
-.avatar:hover + .avatar-hover-text {
-  opacity: 1;
-}
-
-.remove-avatar-btn {
-  position: absolute;
-  top: 5px;
-  right: -50px;
-  padding: 5px 10px;
-  font-size: 12px;
 }
 
 h1 {
