@@ -265,11 +265,11 @@ const saveAftersale = async () => {
 
   // 检查商品当前库存是否足够退货
   if (selectedOrderItem.value && aftersaleForm.value.aftersale_type === 1) {
-    const currentQuantity = selectedOrderItem.value.adjusted_quantity !== null
-        ? selectedOrderItem.value.adjusted_quantity
+    const currentQuantity = aftersaleForm.value.aftersale_type === 1 
+        ? selectedOrderItem.value.quantity 
         : selectedOrderItem.value.quantity;
 
-    if (Math.abs(item.quantity_change) > currentQuantity) {
+    if (currentQuantity !== undefined && Math.abs(item.quantity_change) > currentQuantity) {
       ElMessage.error(`退货数量不能超过当前库存 ${currentQuantity}`);
       return;
     }

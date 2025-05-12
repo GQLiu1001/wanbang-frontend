@@ -3,11 +3,11 @@ import { ref, reactive, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { postInboundLog } from '@/api/logs'; // 修正引用的API
 import { useUserStore } from '@/stores/user';
-import type { InboundLogRequest } from '@/types/interfaces.ts';
+import type { InboundLogRequest } from '@/types/interfaces';
 
 // 获取用户信息
 const userStore = useUserStore();
-const operatorId = userStore.getUserInfo()?.id || null;
+const operatorId = userStore.getUserInfo()?.id || undefined;
 
 // 表单数据（与接口请求类型匹配）
 const formData = ref<InboundLogRequest>({
@@ -55,7 +55,7 @@ const rules = reactive({
   ],
   specification: [
     { required: false, message: '请输入规格', trigger: 'blur' },
-    { pattern: /^[0-9]+x[0-9]+cm$/, message: '规格格式建议为数字x数字mm，如600x600mm', trigger: 'blur' }
+    { pattern: /^[0-9]+x[0-9]+cm$/, message: '规格格式建议为数字x数字cm，如600x600cm', trigger: 'blur' }
   ],
   surface: [
     { required: false, message: '请选择表面处理', trigger: 'change' }
@@ -115,7 +115,7 @@ const submitInventory = async () => {
 
     // 准备提交数据
     const submitData: InboundLogRequest = {
-      operator_id: operatorId || formData.value.operator_id,
+      operator_id: operatorId,
       model_number: formData.value.model_number,
       manufacturer: formData.value.manufacturer,
       specification: formData.value.specification,

@@ -204,7 +204,7 @@ const handleLogin = async () => {
     }
   } catch (error) {
     console.error('登录失败:', error);
-    const errorMsg = error.response?.data?.message || error.message || '登录失败，请检查用户名或密码';
+    const errorMsg = (error as any).response?.data?.message || (error as Error).message || '登录失败，请检查用户名或密码';
     ElMessage.error(errorMsg);
   }
 };

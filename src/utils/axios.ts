@@ -3,9 +3,12 @@ import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosReques
 import { ElMessage } from 'element-plus';
 import router from '@/router';
 
+// 根据环境获取基础URL
+const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+
 // 创建Axios实例
 const instance = axios.create({
-    baseURL: '/api', // 使用相对路径，让Vite代理生效
+    baseURL, // 使用环境变量或默认值
     timeout: 10000,
     headers: { 'Content-Type': 'application/json' },
     withCredentials: true,

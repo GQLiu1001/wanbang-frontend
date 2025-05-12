@@ -2,9 +2,12 @@
 import axios from 'axios';
 import { useUserStore } from '../stores/user';
 
+// 根据环境获取基础URL
+const baseURL = import.meta.env.VITE_DELIVERY_API_BASE_URL || '/delivery-api';
+
 // 创建专门用于配送系统的axios实例
 const deliveryInstance = axios.create({
-    baseURL: '/delivery-api', // 配送系统API地址，确保后端代理配置了相应路径
+    baseURL, // 使用环境变量或默认值
     timeout: 10000,
     headers: { 'Content-Type': 'application/json' },
     withCredentials: true,

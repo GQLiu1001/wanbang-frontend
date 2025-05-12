@@ -206,7 +206,13 @@ const submitUserInfo = async () => {
     }
 
     // 构建提交数据 - 按API文档格式
-    const submitData = {
+    const submitData: {
+      avatar: string;
+      username: string;
+      phone: string;
+      oldPassword?: string;
+      password?: string;
+    } = {
       avatar: userForm.value.avatar || '',
       username: userForm.value.username,
       phone: userForm.value.phone,

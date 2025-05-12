@@ -277,7 +277,8 @@ const rules = reactive({
 
 // 动态显示规格和表面处理字段
 const showSpecificationAndSurface = computed(() => {
-  return [1, 2].includes(orderForm.value.category);
+  const item = orderItems.value[0];
+  return item && [1, 2].includes(item.category);
 });
 </script>
 

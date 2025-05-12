@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getInventoryLogs, updateInventoryLog, deleteInventoryLog } from '@/api/inventoryLog';
 import { useUserStore } from '@/stores/user';
-import type { InventoryLog, LogQueryParams } from '@/types/interfaces.ts';
+import type { InventoryLog, LogQueryParams, InventoryLogChangeRequest } from '@/types/interfaces';
 
 // Store transfer inventory records and search state
 const transferRecords = ref<InventoryLog[]>([]);
@@ -126,7 +126,7 @@ onMounted(() => {
 const handleEdit = (row: InventoryLog) => {
   editForm.value = { ...row };
   // 设置操作人ID为当前用户ID
-  editForm.value.operator_id = operatorId;
+  editForm.value.operator_id = operatorId || 0;
   editDialogVisible.value = true;
 };
 
@@ -143,7 +143,7 @@ const saveEdit = async () => {
       inventory_item_id: editForm.value.inventory_item_id,
       operation_type: 3,
       quantity_change: editForm.value.quantity_change,
-      operator_id: operatorId,
+      operator_id: operatorId || 0,
       source_warehouse: editForm.value.source_warehouse,
       target_warehouse: editForm.value.target_warehouse,
       remark: editForm.value.remark

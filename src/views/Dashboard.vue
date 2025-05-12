@@ -190,8 +190,8 @@ onUnmounted(() => {
           <div class="header-right">
             <el-dropdown>
               <span class="user-info">
-                <el-avatar size="small" :src="userStore.getUserInfo().avatar" />
-                <span class="username">{{userStore.getUserInfo().username}}</span>
+                <el-avatar size="small" :src="userStore.getUserInfo()?.avatar || ''" />
+                <span class="username">{{userStore.getUserInfo()?.username || '用户'}}</span>
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
