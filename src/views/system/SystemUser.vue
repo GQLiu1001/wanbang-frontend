@@ -139,7 +139,7 @@ const submitUserInfo = async () => {
         id: userId.value,
         username: userForm.value.username,
         phone: userForm.value.phone,
-        avatar: undefined,
+        avatar: '',
       };
       userStore.setUserInfo(updatedUserInfo);
 
