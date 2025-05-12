@@ -55,7 +55,7 @@ const rules = reactive({
   ],
   specification: [
     { required: false, message: '请输入规格', trigger: 'blur' },
-    { pattern: /^[0-9]+x[0-9]+cm$/, message: '规格格式建议为数字x数字mm，如600x600mm', trigger: 'blur' }
+    { pattern: /^[0-9]+x[0-9]+cm$/, message: '规格格式建议为数字x数字cm，如600x600cm', trigger: 'blur' }
   ],
   surface: [
     { required: false, message: '请选择表面处理', trigger: 'change' }
