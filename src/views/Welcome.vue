@@ -295,27 +295,31 @@ onBeforeUnmount(() => {
 
 
 <style scoped>
-/* 样式保持不变 */
+/* 优化样式，避免双滚动条 */
 .welcome-container {
-  padding: 20px;
   height: 100%;
-  overflow-y: auto;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: visible; /* 移除容器的滚动，依赖父容器的滚动 */
 }
 
 .stats-section {
   margin-top: 0;
   margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .charts-section {
   display: flex;
-  height: calc(100% - 150px);
-  min-height: 500px;
+  flex: 1;
+  min-height: auto; /* 移除最小高度限制 */
 }
 
 .el-row {
   width: 100%;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 
 .chart-card,
@@ -333,15 +337,14 @@ onBeforeUnmount(() => {
 
 .table-container {
   flex: 1;
-  overflow: hidden;
   position: relative;
-  min-height: 200px;
+  overflow: visible; /* 使用父容器的滚动 */
 }
 
 .sales-chart {
   width: 100%;
   height: 100%;
-  min-height: 400px;
+  min-height: 350px; /* 减小最小高度 */
   flex: 1;
 }
 
@@ -350,6 +353,7 @@ h1 {
   color: #409EFF;
   margin-top: 0;
   margin-bottom: 15px;
+  flex-shrink: 0;
 }
 
 h3 {
@@ -378,14 +382,14 @@ h3 {
 /* 确保在小屏幕上表格不会太小 */
 @media screen and (max-width: 1400px) {
   .charts-section {
-    min-height: 450px;
+    min-height: auto; /* 移除最小高度限制 */
   }
 }
 
 /* 适应不同缩放级别 */
 @media screen and (min-resolution: 120dpi) {
   .table-container {
-    overflow: auto;
+    overflow: visible; /* 使用父容器的滚动 */
   }
 
   .product-card {

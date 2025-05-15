@@ -90,6 +90,7 @@ onUnmounted(() => {
             background-color="#545c64"
             text-color="#fff"
             active-text-color="#ffd04b"
+            unique-opened
         >
           <!-- 仓库管理 -->
           <el-sub-menu index="1">
@@ -178,7 +179,7 @@ onUnmounted(() => {
       </el-aside>
 
       <!-- 主区域 -->
-      <el-container>
+      <el-container class="right-container">
         <!-- 头部 -->
         <el-header class="header">
           <div class="header-left">
@@ -205,15 +206,15 @@ onUnmounted(() => {
 
         <!-- 主内容 -->
         <el-main class="main">
-          <el-card class="content-card">
-            <RouterView />
-          </el-card>
-          <div class="footer">
-            <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" class="icp-link">
-              蒙ICP备2025026241号
-            </a>
-          </div>
+          <RouterView />
         </el-main>
+        
+        <!-- 备案信息 -->
+        <div class="footer">
+          <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" class="icp-link">
+            蒙ICP备2025026241号
+          </a>
+        </div>
       </el-container>
     </el-container>
   </div>
@@ -230,22 +231,27 @@ onUnmounted(() => {
 }
 
 .common-layout {
-  height: 100%;
+  height: 100vh;
   width: 100%;
-
+  overflow: hidden;
 }
 
 .layout-container {
   height: 100%;
   width: 100%;
-
+  display: flex;
 }
 
 .aside {
   background-color: #545c64;
   transition: width 0.3s;
-
   border-radius: 18px 0 0 18px;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 10;
+  border-right: none !important;
+  transition: width 0.3s ease-in;
 }
 
 .logo {
@@ -322,25 +328,38 @@ onUnmounted(() => {
   color: #e4d9d9;
 }
 
+.right-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.aside[width="64px"] + .right-container {
+  margin-left: 64px;
+  width: calc(100% - 64px);
+}
+
 .main {
-  background-color: #cac6c6;
+  background-color: rgb(255, 255, 255);
   padding: 20px;
-  overflow: auto; /* 保留滚动 */
-  height: calc(100vh - 76px);
-  border-radius: 0 0 18px;
+  flex: 1;
+  overflow: auto;
+  border-radius: 0;
 }
 
-.content-card {
-  background-color: #fff;
-  border-radius: 18px;
-  height: 85vh;
-  overflow-y: auto; /* 添加垂直滚动 */
-  overflow-x: auto; /* 添加垂直滚动 */
-}
-
-.aside {
-  border-right: none !important;
-  transition: width 0.5s ease-in;
+.footer {
+  text-align: center;
+  padding: 5px 0;
+  background-color: rgb(255, 255, 255);
+  color: #666;
+  font-size: 12px;
+  border-radius: 0 0 18px 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .el-menu {
@@ -368,23 +387,5 @@ onUnmounted(() => {
   visibility: hidden;
   min-width: 0;
   transition: opacity 0.3s ease-in;
-}
-
-.footer {
-  text-align: center;
-  padding: 10px 0;
-  margin-top: 10px;
-  color: #666;
-  font-size: 12px;
-}
-
-.icp-link {
-  color: #666;
-  text-decoration: none;
-  transition: color 0.3s;
-}
-
-.icp-link:hover {
-  color: #007bff;
 }
 </style>
