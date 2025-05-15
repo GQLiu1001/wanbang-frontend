@@ -13,6 +13,7 @@
             type="password"
             placeholder="请输入旧密码（修改密码时必填）"
             show-password
+            :disabled="isPlayerAccount"
         />
       </el-form-item>
 
@@ -22,6 +23,7 @@
             type="password"
             placeholder="请输入新密码（可选）"
             show-password
+            :disabled="isPlayerAccount"
         />
       </el-form-item>
 
@@ -31,8 +33,18 @@
             type="password"
             placeholder="请再次输入新密码（可选）"
             show-password
+            :disabled="isPlayerAccount"
         />
       </el-form-item>
+
+      <div v-if="isPlayerAccount" class="player-notice">
+        <el-alert
+          title="player账号不允许修改密码"
+          type="warning"
+          show-icon
+          :closable="false"
+        />
+      </div>
 
       <div class="action-buttons">
         <el-button type="primary" size="large" @click="submitUserInfo">提交</el-button>
@@ -75,11 +87,22 @@ const userForm = ref({
 // 用户 ID
 const userId = ref<number>(currentUser?.id || 0);
 
+// 判断是否为player账号
+const isPlayerAccount = computed(() => {
+  return userForm.value.username === 'player';
+});
+
 // 提交用户信息
 const submitUserInfo = async () => {
   try {
     if (!userForm.value.username) {
       ElMessage.error('用户名是必填项');
+      return;
+    }
+
+    // player账号不能修改密码
+    if (isPlayerAccount.value && (userForm.value.oldPassword || userForm.value.password || userForm.value.confirmPassword)) {
+      ElMessage.error('player账号不允许修改密码');
       return;
     }
 
@@ -196,6 +219,11 @@ hr {
   justify-content: center;
   gap: 20px;
   margin-top: 15px;
+}
+
+/* player账号提示样式 */
+.player-notice {
+  margin-bottom: 15px;
 }
 
 /* 移动端样式 */
