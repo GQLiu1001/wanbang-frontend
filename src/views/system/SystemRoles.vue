@@ -33,15 +33,8 @@ const fetchUserList = async () => {
     const response = await getUsers(params);
     const data = response.data;
     if (data.code === 200 && data.data?.items) {
-      // 处理数据，移除电话号码信息
-      const processedItems = data.data.items.map((item: UserList) => {
-        // 创建一个新对象，不包含phone字段
-        const { phone, ...rest } = item;
-        return rest;
-      });
-      
-      // 使用处理后的数据
-      userList.value = processedItems;
+      // 直接使用API返回的数据，不需要额外处理
+      userList.value = data.data.items;
       total.value = data.data.total || 0;
     } else {
       throw new Error('数据格式异常');
