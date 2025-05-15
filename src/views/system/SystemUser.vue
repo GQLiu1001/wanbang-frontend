@@ -2,7 +2,7 @@
   <div class="page-container">
     <h1>用户管理</h1>
     <hr />
-    <el-form :model="userForm" label-width="100px" class="user-form">
+    <el-form :model="userForm" :label-width="isMobile ? '80px' : '100px'" class="user-form">
       <el-form-item label="用户名" required>
         <el-input v-model="userForm.username" placeholder="请输入用户名" />
       </el-form-item>
@@ -34,21 +34,26 @@
         />
       </el-form-item>
 
-      <el-form-item>
-        <el-button type="primary" @click="submitUserInfo">提交</el-button>
-        <el-button @click="resetForm">重置</el-button>
-      </el-form-item>
+      <div class="action-buttons">
+        <el-button type="primary" size="large" @click="submitUserInfo">提交</el-button>
+        <el-button size="large" @click="resetForm">重置</el-button>
+      </div>
     </el-form>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
 import { updateUser } from '@/api/user';
 import type { UpdateUserRequest } from '@/types/interfaces';
 import router from '@/router';
+import { useWindowSize } from '@vueuse/core'; // 导入窗口大小监听hook
+
+// 获取窗口大小
+const { width } = useWindowSize();
+const isMobile = computed(() => width.value < 768);
 
 // 获取当前用户信息
 const userStore = useUserStore();
@@ -163,6 +168,7 @@ const resetForm = () => {
   align-items: center;
   max-width: 500px;
   margin: 0 auto;
+  padding: 0 20px;
 }
 
 .user-form {
@@ -182,5 +188,40 @@ hr {
   width: 100%;
   max-width: 500px;
   margin-bottom: 20px;
+}
+
+/* 按钮样式 */
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 15px;
+}
+
+/* 移动端样式 */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 0 10px;
+  }
+  
+  .user-form {
+    padding: 15px;
+  }
+  
+  h1 {
+    font-size: 20px;
+    margin-bottom: 15px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+  
+  .action-buttons .el-button {
+    width: 100%;
+    margin-left: 0;
+  }
 }
 </style>

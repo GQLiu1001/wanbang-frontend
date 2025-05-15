@@ -139,9 +139,9 @@ const resetForm = () => {
         </el-col>
       </el-row>
 
-      <el-form-item>
-        <el-button type="primary" @click="submitTransfer">提交</el-button>
-        <el-button @click="resetForm">重置</el-button>
+      <el-form-item class="action-buttons">
+        <el-button type="primary" @click="submitTransfer" class="action-button">提交</el-button>
+        <el-button @click="resetForm" class="action-button">重置</el-button>
       </el-form-item>
     </el-form>
   </div>
@@ -154,5 +154,42 @@ const resetForm = () => {
 
 .el-select {
   width: 100%;
+}
+
+/* 调整按钮样式和间距 */
+.action-buttons {
+  margin-top: 30px;
+  display: flex;
+  gap: 20px; /* 增加按钮之间的间距 */
+  flex-wrap: wrap;
+}
+
+.action-button {
+  min-width: 120px; /* 设置按钮最小宽度，使其更容易点击 */
+  padding: 12px 20px; /* 增加内边距，使按钮更大更易点击 */
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .form-container {
+    padding: 20px 10px;
+  }
+  
+  .action-buttons {
+    flex-direction: column; /* 在移动端将按钮垂直排列 */
+    align-items: stretch; /* 拉伸按钮宽度填满容器 */
+    gap: 15px;
+  }
+  
+  .action-button {
+    width: 100%; /* 在移动端下按钮宽度100% */
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  /* 确保表单项在移动端显示正常 */
+  :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
 }
 </style>

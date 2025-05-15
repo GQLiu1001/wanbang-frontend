@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { postInboundLog } from '@/api/logs'; // 修正引用的API
 import { useUserStore } from '@/stores/user';
 import type { InboundLogRequest } from '@/types/interfaces';
+import { useWindowSize } from '@vueuse/core'; // 导入窗口大小监听hook
+
+// 获取窗口大小
+const { width } = useWindowSize();
+const isMobile = computed(() => width.value < 768);
 
 // 获取用户信息
 const userStore = useUserStore();
@@ -205,7 +210,7 @@ const priceLabel = computed(() => {
         ref="formRef"
         :model="formData"
         :rules="rules"
-        label-width="100px"
+        :label-width="isMobile ? '80px' : '100px'"
         class="inbound-form"
         status-icon
     >
@@ -225,7 +230,7 @@ const priceLabel = computed(() => {
       <el-row :gutter="20">
         <el-col :span="24">
           <el-form-item label="产品分类" prop="category">
-            <el-radio-group v-model="formData.category">
+            <el-radio-group v-model="formData.category" class="radio-group">
               <el-radio
                   v-for="item in categoryOptions"
                   :key="item.value"
@@ -248,7 +253,7 @@ const priceLabel = computed(() => {
         </el-col>
         <el-col :span="12">
           <el-form-item label="表面处理" prop="surface">
-            <el-radio-group v-model="formData.surface">
+            <el-radio-group v-model="formData.surface" class="radio-group">
               <el-radio
                   v-for="item in surfaceOptions"
                   :key="item.value"
@@ -318,7 +323,7 @@ const priceLabel = computed(() => {
             </el-input>
           </el-form-item>
         </el-col>
-        <el-col :span="16">
+        <el-col :span="16" :class="{ 'full-width-mobile': isMobile }">
           <el-form-item label="备注" prop="remark">
             <el-input
                 v-model="formData.remark"
@@ -330,42 +335,45 @@ const priceLabel = computed(() => {
             />
           </el-form-item>
         </el-col>
-        <el-col :span="8">
+        <el-col :span="8" :class="{ 'full-width-mobile': isMobile }">
           <div class="summary-info">
             <div class="summary-title">入库信息摘要</div>
-            <div class="summary-item">
-              <span class="label">{{ totalLabel }}:</span>
-              <span class="value">{{ formData.total_pieces || '未设置' }}</span>
-            </div>
-            <div class="summary-item" v-if="showPiecesPerBox">
-              <span class="label">每箱片数:</span>
-              <span class="value">{{ formData.pieces_per_box || '未设置' }}</span>
-            </div>
-            <div class="summary-item" v-if="showPiecesPerBox">
-              <span class="label">总箱数:</span>
-              <span class="value">{{ totalBoxes }}</span>
-            </div>
-            <div class="summary-item">
-              <span class="label">{{ priceLabel }}:</span>
-              <span class="value">{{ formData.price_per_piece ? `¥${formData.price_per_piece.toFixed(2)}` : '未设置' }}</span>
-            </div>
-            <div class="summary-item">
-              <span class="label">总金额:</span>
-              <span class="value">{{
-                  (formData.total_pieces && formData.price_per_piece)
-                      ? `¥${(formData.total_pieces * formData.price_per_piece).toFixed(2)}`
-                      : '未知'
-                }}</span>
+            <div class="summary-content">
+              <div class="summary-item">
+                <span class="label">{{ totalLabel }}:</span>
+                <span class="value">{{ formData.total_pieces || '未设置' }}</span>
+              </div>
+              <div class="summary-item" v-if="showPiecesPerBox">
+                <span class="label">每箱片数:</span>
+                <span class="value">{{ formData.pieces_per_box || '未设置' }}</span>
+              </div>
+              <div class="summary-item" v-if="showPiecesPerBox">
+                <span class="label">总箱数:</span>
+                <span class="value">{{ totalBoxes }}</span>
+              </div>
+              <div class="summary-item">
+                <span class="label">{{ priceLabel }}:</span>
+                <span class="value">{{ formData.price_per_piece ? `¥${formData.price_per_piece.toFixed(2)}` : '未设置' }}</span>
+              </div>
+              <div class="summary-item">
+                <span class="label">总金额:</span>
+                <span class="value">{{
+                    (formData.total_pieces && formData.price_per_piece)
+                        ? `¥${(formData.total_pieces * formData.price_per_piece).toFixed(2)}`
+                        : '未知'
+                  }}</span>
+              </div>
             </div>
           </div>
         </el-col>
       </el-row>
-
-      <el-form-item>
-        <el-button type="primary" :loading="loading" @click="submitInventory">提交入库</el-button>
-        <el-button @click="resetForm">重置</el-button>
-      </el-form-item>
     </el-form>
+    
+    <!-- 新的按钮容器，位于表单底部居中 -->
+    <div class="action-buttons">
+      <el-button type="primary" size="large" :loading="loading" @click="submitInventory">提交入库</el-button>
+      <el-button size="large" @click="resetForm">重置</el-button>
+    </div>
   </div>
 </template>
 
@@ -390,6 +398,11 @@ h1 {
   display: inline-block;
 }
 
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+}
+
 .form-tip {
   font-size: 12px;
   color: #909399;
@@ -403,6 +416,12 @@ h1 {
   padding: 15px;
   height: 100%;
   min-height: 120px;
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-content {
+  flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -431,5 +450,69 @@ h1 {
 .summary-item .value {
   color: #303133;
   font-weight: 500;
+}
+
+/* 新增按钮样式 */
+.action-buttons {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+/* 移动端响应式布局 */
+@media (max-width: 768px) {
+  .inbound-form-container {
+    padding: 0 10px 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+    margin-bottom: 15px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin-top: 20px;
+  }
+  
+  .action-buttons .el-button {
+    width: 90%;
+    margin-bottom: 10px;
+  }
+  
+  .full-width-mobile {
+    width: 100%;
+    max-width: 100%;
+    flex: 0 0 100%;
+  }
+  
+  .summary-info {
+    margin-top: 15px;
+    padding: 12px;
+    min-height: auto;
+  }
+  
+  .summary-title {
+    font-size: 14px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+  }
+  
+  .summary-item {
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  
+  .radio-item {
+    margin-right: 10px;
+    margin-bottom: 6px;
+  }
+  
+  .radio-group {
+    justify-content: flex-start;
+  }
 }
 </style>

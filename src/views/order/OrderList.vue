@@ -9,6 +9,11 @@ import { useUserStore } from '@/stores/user';
 import { getInventoryByModelNumber } from '@/api/inventory';
 import type { OrderQueryParams } from '@/types/interfaces';
 import { dispatchOrder } from '@/api/delivery'; // 导入派送API
+import { useWindowSize } from '@vueuse/core'; // 导入窗口大小监听hook
+
+// 获取窗口大小
+const { width } = useWindowSize();
+const isMobile = computed(() => width.value < 768);
 
 // 获取用户信息
 const userStore = useUserStore();
@@ -678,34 +683,28 @@ onMounted(() => {
   <hr>
   <div class="records-container">
     <!-- 搜索区域 -->
-    <el-row :gutter="20" class="search-section">
-      <el-col :span="8">
-        <el-form-item label="按日期筛选">
+    <div class="search-section">
+      <el-form :inline="!isMobile" @submit.prevent="fetchOrderList">
+        <el-form-item label="手机号" :label-width="isMobile ? '60px' : 'auto'">
+          <el-input v-model="searchPhone" placeholder="搜索客户手机号" clearable />
+        </el-form-item>
+        <el-form-item label="时间范围" :label-width="isMobile ? '60px' : 'auto'">
           <el-date-picker
-              v-model="searchDateRange"
-              type="daterange"
-              range-separator="至"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
-              :picker-options="pickerOptions"
-              @change="fetchOrderList"
+            v-model="searchDateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            :shortcuts="pickerOptions.shortcuts"
+            :style="{ width: isMobile ? '100%' : '350px' }"
           />
         </el-form-item>
-      </el-col>
-      <el-col :span="8">
-        <el-form-item label="按手机号筛选">
-          <el-input
-              v-model="searchPhone"
-              placeholder="输入客户手机号"
-              clearable
-              @input="fetchOrderList"
-          />
+        <el-form-item class="search-buttons">
+          <el-button type="primary" @click="fetchOrderList">搜索</el-button>
+          <el-button @click="clearFilter">重置</el-button>
         </el-form-item>
-      </el-col>
-      <el-col :span="4">
-        <el-button @click="clearFilter">清除筛选</el-button>
-      </el-col>
-    </el-row>
+      </el-form>
+    </div>
 
     <!-- 订单列表 -->
     <el-table
@@ -785,7 +784,7 @@ onMounted(() => {
           :page-size="size"
           :total="total"
           :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
+          :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
           @current-change="handlePageChange"
           @size-change="handleSizeChange"
       />
@@ -1085,7 +1084,7 @@ onMounted(() => {
     <el-dialog
       v-model="dispatchDialogVisible"
       title="派送订单"
-      width="50%"
+      :width="isMobile ? '95%' : '50%'"
       destroy-on-close
     >
       <div v-if="currentDispatchOrder" class="order-info-summary">
@@ -1101,7 +1100,7 @@ onMounted(() => {
         </el-descriptions>
       </div>
       <!-- 派送表单 -->
-      <el-form :model="dispatchForm" label-width="120px">
+      <el-form :model="dispatchForm" :label-width="isMobile ? '80px' : '120px'">
         <el-form-item label="配送地址" required>
           <el-input
             v-model="dispatchForm.deliveryAddress"
@@ -1134,7 +1133,7 @@ onMounted(() => {
         </el-form-item>
       </el-form>
       <template #footer>
-        <span class="dialog-footer">
+        <span :class="{ 'dialog-footer': true, 'mobile-footer': isMobile }">
           <el-button @click="dispatchDialogVisible = false">取消</el-button>
           <el-button type="primary" @click="handleDispatch">确认派送</el-button>
         </span>
@@ -1272,5 +1271,57 @@ onMounted(() => {
   margin-bottom: 20px;
   padding-bottom: 15px;
   border-bottom: 1px solid #eee;
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+  .search-section {
+    padding: 10px;
+  }
+  
+  :deep(.el-form--inline .el-form-item) {
+    margin-right: 0;
+    margin-bottom: 10px;
+    width: 100%;
+  }
+  
+  .search-buttons {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  
+  .search-buttons .el-button {
+    margin: 0 5px;
+    flex: 1;
+  }
+  
+  .mobile-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+  
+  .mobile-footer .el-button {
+    width: 100%;
+    margin-left: 0;
+  }
+  
+  .button-group-vertical {
+    width: 100%;
+  }
+  
+  .button-row {
+    display: flex;
+    width: 100%;
+  }
+  
+  .button-row .el-button {
+    flex: 1;
+    margin: 0 2px;
+    padding: 6px 5px;
+    font-size: 12px;
+  }
 }
 </style>

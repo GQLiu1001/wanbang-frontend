@@ -4,6 +4,9 @@ import 'element-plus/dist/index.css'
 import ElementPlus from 'element-plus'
 import App from './App.vue'
 import router from './router'
+// 导入全局响应式样式
+import './assets/responsive.css'
+
 const app = createApp(App)
 
 // element-plus icons

@@ -1,0 +1,128 @@
+/* 全局响应式样式 */
+
+/* 移动设备通用样式 */
+@media (max-width: 768px) {
+  /* 列布局自适应 */
+  .el-row .el-col {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
+    margin-bottom: 10px;
+  }
+  
+  /* 表单项垂直排列 */
+  .el-form-item {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .el-form-item__label {
+    text-align: left !important;
+    width: 100% !important;
+    padding: 0 0 8px 0 !important;
+    line-height: 1.2;
+    box-sizing: border-box;
+  }
+  
+  .el-form-item__content {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+  
+  /* 输入框和选择器样式 */
+  .el-input,
+  .el-select,
+  .el-textarea,
+  .el-date-editor,
+  .el-cascader {
+    width: 100% !important;
+  }
+  
+  .el-input-number {
+    width: 100% !important;
+  }
+  
+  /* 表格样式调整 */
+  .el-table {
+    width: 100% !important;
+    overflow-x: auto;
+  }
+  
+  /* 卡片样式 */
+  .el-card {
+    margin-bottom: 15px;
+  }
+  
+  /* 按钮组样式调整 */
+  .el-button+.el-button {
+    margin-left: 0;
+    margin-top: 10px;
+  }
+  
+  /* 对话框样式调整 */
+  .el-dialog {
+    width: 95% !important;
+    margin: 10px auto !important;
+  }
+  
+  /* 分页组件样式调整 */
+  .el-pagination {
+    white-space: normal !important;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .el-pagination .el-pagination__sizes {
+    display: none !important;
+  }
+  
+  /* 导航菜单样式调整 */
+  .el-menu--horizontal {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* 间距和内边距调整 */
+  .container, .form-container, .page-container {
+    padding: 10px !important;
+  }
+  
+  /* 通用标题样式 */
+  h1 {
+    font-size: 1.5rem !important;
+  }
+  
+  h2 {
+    font-size: 1.3rem !important;
+  }
+  
+  h3 {
+    font-size: 1.1rem !important;
+  }
+  
+  /* 加载器和提示样式 */
+  .loading-container {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+/* 平板设备样式 */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* 列布局适配 */
+  .el-col-sm-12 {
+    width: 50% !important;
+  }
+  
+  /* 输入框和表单调整 */
+  .el-input, .el-select {
+    width: 100% !important;
+  }
+  
+  /* 容器内边距调整 */
+  .container, .form-container, .page-container {
+    padding: 15px !important;
+  }
+} 

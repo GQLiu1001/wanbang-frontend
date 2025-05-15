@@ -296,7 +296,7 @@ const showSpecificationAndSurface = computed(() => {
         </template>
 
         <el-row :gutter="20">
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="客户手机号" required>
               <el-input
                   v-model="orderForm.customer_phone"
@@ -305,7 +305,7 @@ const showSpecificationAndSurface = computed(() => {
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="操作人ID" required>
               <el-input
                   v-model.number="orderForm.operator_id"
@@ -361,7 +361,7 @@ const showSpecificationAndSurface = computed(() => {
           </div>
 
           <el-row :gutter="20">
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="产品型号" required>
                 <el-input 
                   v-model="item.model_number" 
@@ -370,7 +370,7 @@ const showSpecificationAndSurface = computed(() => {
                 />
               </el-form-item>
             </el-col>
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="库存商品ID" required>
                 <el-input
                   v-model.number="item.item_id"
@@ -383,7 +383,7 @@ const showSpecificationAndSurface = computed(() => {
           </el-row>
 
           <el-row :gutter="20">
-            <el-col :span="6">
+            <el-col :xs="24" :sm="6">
               <el-form-item label="现有库存">
                 <el-input
                   v-model.number="item.total_pieces"
@@ -393,7 +393,7 @@ const showSpecificationAndSurface = computed(() => {
                 />
               </el-form-item>
             </el-col>
-            <el-col :span="6">
+            <el-col :xs="24" :sm="6">
               <el-form-item label="数量" required>
                 <el-input
                     v-model.number="item.quantity"
@@ -404,7 +404,7 @@ const showSpecificationAndSurface = computed(() => {
                 />
               </el-form-item>
             </el-col>
-            <el-col :span="6">
+            <el-col :xs="24" :sm="6">
               <el-form-item label="单价" required>
                 <el-input
                     v-model.number="item.price_per_piece"
@@ -416,7 +416,7 @@ const showSpecificationAndSurface = computed(() => {
                 />
               </el-form-item>
             </el-col>
-            <el-col :span="6">
+            <el-col :xs="24" :sm="6">
               <el-form-item label="小计">
                 <el-input
                     v-model.number="item.subtotal"
@@ -497,33 +497,98 @@ const showSpecificationAndSurface = computed(() => {
   margin: 0;
 }
 
-.el-form-item {
-  margin-bottom: 15px;
-}
-
 .text-right {
   text-align: right;
 }
 
-.form-actions {
-  margin-top: 25px;
-  text-align: center;
-}
-
-.el-divider {
-  margin: 15px 0;
-}
-
 .price-difference {
-  font-size: 14px;
-  margin-right: 20px;
+  font-weight: bold;
 }
 
 .positive {
-  color: #67C23A;
+  color: #67c23a;
 }
 
 .negative {
-  color: #F56C6C;
+  color: #f56c6c;
+}
+
+.form-actions {
+  margin-top: 30px;
+  text-align: center;
+}
+
+/* 移动端适配样式 */
+@media (max-width: 768px) {
+  .form-container {
+    padding: 10px;
+  }
+  
+  .order-card {
+    margin-bottom: 15px;
+  }
+  
+  /* 在移动端下，将所有列宽度设置为100% */
+  .el-col {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
+    margin-bottom: 10px;
+  }
+  
+  /* 确保表单项标签和输入框垂直排列 */
+  :deep(.el-form-item) {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  :deep(.el-form-item__label) {
+    text-align: left;
+    width: 100% !important;
+    padding: 0 0 8px 0;
+    line-height: 1.2;
+    box-sizing: border-box;
+  }
+  
+  :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+  
+  /* 调整顶部标题和按钮 */
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .card-header button {
+    margin-top: 10px;
+  }
+  
+  /* 确保输入框显示正常 */
+  :deep(.el-input), :deep(.el-select), :deep(.el-textarea) {
+    width: 100%;
+  }
+  
+  /* 调整订单商品项的样式 */
+  .order-item {
+    padding: 10px;
+  }
+  
+  .order-item-header {
+    margin-bottom: 10px;
+  }
+  
+  /* 调整提交按钮 */
+  .form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .form-actions .el-button {
+    width: 100%;
+  }
 }
 </style>

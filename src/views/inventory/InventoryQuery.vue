@@ -305,8 +305,8 @@ performSearch();
         </div>
       </div>
       <div class="button-section">
-        <el-button type="default" @click="resetSearch">重置</el-button>
-        <el-button type="primary" :loading="loading" @click="performSearch">
+        <el-button type="default" @click="resetSearch" class="action-button">重置</el-button>
+        <el-button type="primary" :loading="loading" @click="performSearch" class="action-button">
           搜索
         </el-button>
       </div>
@@ -321,12 +321,13 @@ performSearch();
           style="width: 100%"
           border
           max-height="600"
+          class="inventory-table"
       >
-        <el-table-column prop="id" label="ID" width="80" fixed />
-        <el-table-column prop="model_number" label="产品型号" width="120" fixed />
-        <el-table-column prop="manufacturer" label="制造厂商" width="120" />
-        <el-table-column prop="specification" label="规格" width="120" />
-        <el-table-column prop="surface" label="表面处理" width="120">
+        <el-table-column prop="id" label="ID" min-width="60" />
+        <el-table-column prop="model_number" label="产品型号" min-width="120" />
+        <el-table-column prop="manufacturer" label="制造厂商" min-width="120" />
+        <el-table-column prop="specification" label="规格" min-width="120" />
+        <el-table-column prop="surface" label="表面处理" min-width="120">
           <template #default="{ row }">
             {{ surfaceOptions.find(opt => opt.value === row.surface)?.label || '未知' }}
           </template>
@@ -544,5 +545,97 @@ h1 {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+}
+
+/* 添加适用于表格的移动端样式 */
+@media (max-width: 768px) {
+  /* 移除表格的固定列，防止在小屏幕上重叠 */
+  :deep(.el-table .el-table__fixed),
+  :deep(.el-table .el-table__fixed-right) {
+    display: none !important;
+  }
+  
+  /* 调整表格溢出行为，使其在移动设备上可以水平滚动 */
+  :deep(.el-table) {
+    width: 100% !important;
+    overflow-x: auto !important;
+    white-space: nowrap;
+  }
+  
+  :deep(.el-table__body),
+  :deep(.el-table__header) {
+    min-width: 100%;
+  }
+  
+  /* 保持表格内容可读性 */
+  :deep(.el-table .cell) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* 调整筛选栏在移动端的布局 */
+  .header-container {
+    flex-direction: column;
+  }
+  
+  .options-section, 
+  .button-section {
+    width: 100%;
+  }
+  
+  .button-section {
+    justify-content: center;
+    margin-top: 20px;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  
+  .action-button {
+    width: 45%;
+    margin: 0;
+    min-width: 120px;
+  }
+  
+  @media (max-width: 480px) {
+    .button-section {
+      flex-direction: column;
+    }
+    
+    .action-button {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+  }
+  
+  /* 调整标签和选项的布局 */
+  .option-group {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .label {
+    margin-bottom: 8px;
+    padding-top: 0;
+  }
+  
+  /* 让单选按钮组更好地适应移动端 */
+  :deep(.el-radio-group) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .radio-item {
+    margin-right: 8px;
+    margin-bottom: 8px;
+  }
+}
+
+/* 添加按钮样式 */
+.action-button {
+  min-width: 100px;
+  padding: 12px 20px;
+  margin-left: 10px;
 }
 </style>

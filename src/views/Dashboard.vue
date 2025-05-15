@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import router from '@/router';
 import { ChromeFilled, Location, DocumentCopy, Box, Search, Upload, Monitor, Switch, Document, FolderChecked, Van, Service, Setting, User, Lock, Menu } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useUserStore } from "@/stores/user";
 import instance from '@/utils/axios';
 import {logout} from "@/api/auth";
+import { useWindowSize } from '@vueuse/core';
 
 // 获取当前用户信息
 const userStore = useUserStore();
@@ -61,10 +62,24 @@ const handleLogout = () => {
       });
 };
 
+// 添加响应式窗口尺寸检测
+const { width } = useWindowSize();
+// 监听窗口宽度变化，在小屏幕上自动折叠侧边栏
+watch(width, (newWidth) => {
+  if (newWidth < 768) {
+    isCollapse.value = true;
+  }
+});
+
 onMounted(() => {
   timer = window.setInterval(() => {
     currentTime.value = new Date().toLocaleTimeString();
   }, 1000);
+  
+  // 小屏幕上默认折叠侧边栏
+  if (width.value < 768) {
+    isCollapse.value = true;
+  }
 });
 
 onUnmounted(() => {
@@ -72,13 +87,23 @@ onUnmounted(() => {
     clearInterval(timer);
   }
 });
+
+// 添加一个方法用于在移动设备上展开/折叠菜单
+const toggleMobileMenu = () => {
+  isCollapse.value = !isCollapse.value;
+};
 </script>
 
 <template>
   <div class="common-layout">
+    <div v-if="!isCollapse && width < 768" class="mobile-menu-mask" @click="toggleMobileMenu"></div>
     <el-container class="layout-container">
       <!-- 侧边栏 -->
-      <el-aside :width="isCollapse ? '64px' : '200px'" class="aside">
+      <el-aside 
+        :width="isCollapse ? '64px' : '200px'" 
+        class="aside"
+        :class="{'mobile-visible': !isCollapse && width < 768}"
+      >
         <div class="logo" :class="{ 'logo-collapsed': isCollapse }" @click="router.push('/dashboard/welcome')">
           <el-icon class="logo-icon"><ChromeFilled /></el-icon>
           <span v-show="!isCollapse">万邦</span>
@@ -183,7 +208,7 @@ onUnmounted(() => {
         <!-- 头部 -->
         <el-header class="header">
           <div class="header-left">
-            <el-icon class="toggle-icon" @click="isCollapse = !isCollapse">
+            <el-icon class="toggle-icon" @click="width < 768 ? toggleMobileMenu() : (isCollapse = !isCollapse)">
               <Menu />
             </el-icon>
             <span class="header-time">{{ currentTime }}</span>
@@ -387,5 +412,69 @@ onUnmounted(() => {
   visibility: hidden;
   min-width: 0;
   transition: opacity 0.3s ease-in;
+}
+
+/* 移动设备适配 */
+@media (max-width: 768px) {
+  .aside {
+    position: fixed;
+    left: -200px;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    transition: left 0.3s ease-in-out;
+  }
+  
+  .aside.mobile-visible {
+    left: 0;
+  }
+  
+  .aside[width="64px"] {
+    left: -64px;
+  }
+  
+  .aside[width="64px"].mobile-visible {
+    left: 0;
+  }
+  
+  .right-container {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .header {
+    border-radius: 0;
+  }
+  
+  .toggle-icon {
+    font-size: 28px; /* 增大触摸区域 */
+  }
+  
+  .main {
+    padding: 15px;
+    border-radius: 0;
+  }
+  
+  .footer {
+    border-radius: 0;
+  }
+}
+
+/* 当侧边栏可见时，添加遮罩层 */
+.mobile-menu-mask {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-mask {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    display: block;
+  }
 }
 </style>

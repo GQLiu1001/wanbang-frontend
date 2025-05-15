@@ -4,6 +4,11 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { getUsers, deleteUser } from '@/api/user';
 import type { User, PaginationParams, UserList } from '@/types/interfaces';
 import { useUserStore } from '@/stores/user';
+import { useWindowSize } from '@vueuse/core'; // 导入窗口大小监听hook
+
+// 获取窗口大小
+const { width } = useWindowSize();
+const isMobile = computed(() => width.value < 768);
 
 // Store user list and pagination state
 const userList = ref<UserList[]>([]);
@@ -118,17 +123,18 @@ onMounted(() => {
     <!-- 用户列表 -->
     <div class="user-list-container">
       <h2>所有用户</h2>
-      <el-table :data="userList" style="width: 100%">
-        <el-table-column prop="id" label="用户id" />
-        <el-table-column prop="username" label="用户名" />
-        <el-table-column prop="description" label="角色描述" />
+      <el-table :data="userList" style="width: 100%" :size="isMobile ? 'small' : 'default'">
+        <el-table-column prop="id" label="用户id" :width="isMobile ? 70 : 'auto'" />
+        <el-table-column prop="username" label="用户名" :width="isMobile ? 100 : 'auto'" />
+        <el-table-column prop="description" label="角色描述" min-width="120" />
         <!-- 使用计算属性控制整列显示 -->
-        <el-table-column label="操作" v-if="hasDeletePermission">
+        <el-table-column label="操作" v-if="hasDeletePermission" :width="isMobile ? 80 : 120" fixed="right">
           <template #default="{ row }">
             <el-button
                 type="danger"
-                size="small"
+                :size="isMobile ? 'small' : 'default'"
                 @click="handleDelete(row.id, row.username)"
+                class="delete-button"
             >
               删除
             </el-button>
@@ -139,11 +145,12 @@ onMounted(() => {
       <!-- Pagination -->
       <div class="pagination-container">
         <el-pagination
+            v-if="userList && userList.length > 0"
             :current-page="page"
             :page-size="size"
             :total="total"
             :page-sizes="[10, 20, 50, 100]"
-            layout="total, sizes, prev, pager, next, jumper"
+            :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
             @current-change="handlePageChange"
             @size-change="handleSizeChange"
         />
@@ -203,5 +210,35 @@ hr {
 .el-table .el-table__cell {
   padding: 10px; /* Adjust padding for consistency */
   height: 100%;
+}
+
+/* 移动端样式 */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 10px;
+  }
+  
+  .user-list-container {
+    padding: 15px 10px;
+  }
+  
+  h1 {
+    font-size: 20px;
+    margin-bottom: 15px;
+  }
+  
+  h2 {
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+  
+  .delete-button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  .el-table .el-table__cell {
+    padding: 5px;
+  }
 }
 </style>

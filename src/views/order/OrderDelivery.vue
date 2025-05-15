@@ -5,6 +5,11 @@ import { useUserStore } from '@/stores/user';
 // 使用专门的派送系统API
 import { dispatchOrder, getPendingOrders } from '@/api/delivery';
 import type { DeliveryOrder, DispatchRequest } from '@/types/interfaces';
+import { useWindowSize } from '@vueuse/core'; // 导入窗口大小监听hook
+
+// 获取窗口大小
+const { width } = useWindowSize();
+const isMobile = computed(() => width.value < 768);
 
 // 添加从Order定义派生的类型，来匹配getOrders返回的订单数据
 interface OrderData {
@@ -306,32 +311,40 @@ onMounted(() => {
     <h1>订单派送管理</h1>
     <hr>
     
+    <!-- 系统错误提示 -->
+    <el-alert
+      v-if="systemErrorMessage"
+      :title="systemErrorMessage"
+      type="error"
+      :closable="false"
+      class="system-alert"
+      show-icon
+    />
+
     <!-- 搜索区域 -->
-    <el-card class="search-section">
-      <el-form :inline="true" @submit.prevent="loadPendingOrders">
-        <el-form-item label="按日期筛选">
+    <div class="search-section">
+      <el-form :inline="!isMobile" label-width="80px">
+        <el-form-item label="手机号">
+          <el-input v-model="searchPhone" placeholder="搜索客户手机号"></el-input>
+        </el-form-item>
+        <el-form-item label="时间范围">
           <el-date-picker
             v-model="searchDateRange"
             type="daterange"
+            unlink-panels
             range-separator="至"
             start-placeholder="开始日期"
             end-placeholder="结束日期"
-            :picker-options="pickerOptions"
+            :shortcuts="pickerOptions.shortcuts"
+            :style="{ width: isMobile ? '100%' : '350px' }"
           />
         </el-form-item>
-        <el-form-item label="按手机号筛选">
-          <el-input
-            v-model="searchPhone"
-            placeholder="输入客户手机号"
-            clearable
-          />
-        </el-form-item>
-        <el-form-item>
+        <el-form-item :label="isMobile ? '' : '操作'" class="search-buttons">
           <el-button type="primary" @click="loadPendingOrders">搜索</el-button>
           <el-button @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
+    </div>
     
     <!-- 系统未就绪提示 -->
     <el-alert
@@ -357,6 +370,7 @@ onMounted(() => {
       stripe
       highlight-current-row
       header-cell-class-name="table-header"
+      :size="isMobile ? 'small' : 'default'"
     >
       <el-table-column prop="id" label="订单ID" width="80" align="center" />
       <el-table-column prop="orderNo" label="订单编号" width="180" align="center" />
@@ -384,26 +398,28 @@ onMounted(() => {
         </template>
       </el-table-column>
       <el-table-column prop="deliveryAddress" label="配送地址" min-width="200" :show-overflow-tooltip="true" />
-      <el-table-column label="操作" width="120" fixed="right" align="center">
+      <el-table-column label="操作" :width="isMobile ? 80 : 120" fixed="right" align="center">
         <template #default="{ row }">
-          <el-button
-            v-if="row.deliveryStatus === 1 || row.deliveryStatus === undefined || row.deliveryStatus === null"
-            type="primary"
-            size="small"
-            @click="handleDispatch(row)"
-          >派送</el-button>
-          <el-button
-            v-else-if="row.deliveryStatus === 2 || row.deliveryStatus === 3"
-            type="warning"
-            size="small"
-            @click="showDeliveryDetails(row)"
-          >详情</el-button>
-          <el-button
-            v-else
-            type="info"
-            size="small"
-            @click="showDeliveryDetails(row)"
-          >查看</el-button>
+          <div class="action-buttons">
+            <el-button
+              v-if="row.deliveryStatus === 1 || row.deliveryStatus === undefined || row.deliveryStatus === null"
+              type="primary"
+              :size="isMobile ? 'small' : 'default'"
+              @click="handleDispatch(row)"
+            >派送</el-button>
+            <el-button
+              v-else-if="row.deliveryStatus === 2 || row.deliveryStatus === 3"
+              type="warning"
+              :size="isMobile ? 'small' : 'default'"
+              @click="showDeliveryDetails(row)"
+            >详情</el-button>
+            <el-button
+              v-else
+              type="info"
+              :size="isMobile ? 'small' : 'default'"
+              @click="showDeliveryDetails(row)"
+            >查看</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -420,7 +436,7 @@ onMounted(() => {
         :page-size="size"
         :total="total"
         :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
+        :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
         @current-change="handlePageChange"
         @size-change="handleSizeChange"
       />
@@ -430,7 +446,7 @@ onMounted(() => {
     <el-dialog
       v-model="dispatchDialogVisible"
       title="派送订单"
-      width="50%"
+      :width="isMobile ? '95%' : '50%'"
       destroy-on-close
     >
       <div v-if="currentOrder" class="order-info-summary">
@@ -490,7 +506,7 @@ onMounted(() => {
     <el-dialog
       v-model="deliveryDetailsVisible"
       title="配送详情"
-      width="50%"
+      :width="isMobile ? '95%' : '50%'"
       destroy-on-close
     >
       <div v-if="currentOrder" class="delivery-details">
@@ -568,5 +584,55 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: center;
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+  .order-delivery-container {
+    padding: 10px;
+  }
+  
+  .search-section {
+    padding: 10px;
+  }
+  
+  :deep(.el-form--inline .el-form-item) {
+    margin-right: 0;
+    margin-bottom: 10px;
+    width: 100%;
+  }
+  
+  .search-buttons {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  
+  .search-buttons .el-button {
+    margin: 0 5px;
+    flex: 1;
+  }
+  
+  .action-buttons {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .action-buttons .el-button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  .dialog-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+  
+  .dialog-footer .el-button {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 </style> 
