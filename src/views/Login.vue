@@ -26,6 +26,11 @@
         </div>
       </form>
     </div>
+    <div class="footer">
+      <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" class="icp-link">
+        蒙ICP备2025026241号
+      </a>
+    </div>
   </div>
 </template>
 <script setup lang="ts">
@@ -220,5 +225,28 @@ h1 {
 
 .rounded-button:hover {
   background-color: #0056b3;
+}
+
+.footer {
+  position: fixed;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  padding: 10px 0;
+  color: #fff;
+  font-size: 12px;
+  z-index: 100;
+}
+
+.icp-link {
+  color: #fff;
+  text-decoration: none;
+  transition: color 0.3s;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+}
+
+.icp-link:hover {
+  color: #007bff;
 }
 </style>

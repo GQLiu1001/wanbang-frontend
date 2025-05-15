@@ -3,9 +3,9 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import router from '@/router';
 import { ChromeFilled, Location, DocumentCopy, Box, Search, Upload, Monitor, Switch, Document, FolderChecked, Van, Service, Setting, User, Lock, Menu } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from "element-plus";
-import { useUserStore } from "@/stores/user.ts";
+import { useUserStore } from "@/stores/user";
 import instance from '@/utils/axios';
-import {logout} from "@/api/auth.ts";
+import {logout} from "@/api/auth";
 
 // 获取当前用户信息
 const userStore = useUserStore();
@@ -62,7 +62,7 @@ const handleLogout = () => {
 };
 
 onMounted(() => {
-  timer = setInterval(() => {
+  timer = window.setInterval(() => {
     currentTime.value = new Date().toLocaleTimeString();
   }, 1000);
 });
@@ -208,6 +208,11 @@ onUnmounted(() => {
           <el-card class="content-card">
             <RouterView />
           </el-card>
+          <div class="footer">
+            <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" class="icp-link">
+              蒙ICP备2025026241号
+            </a>
+          </div>
         </el-main>
       </el-container>
     </el-container>
@@ -363,5 +368,23 @@ onUnmounted(() => {
   visibility: hidden;
   min-width: 0;
   transition: opacity 0.3s ease-in;
+}
+
+.footer {
+  text-align: center;
+  padding: 10px 0;
+  margin-top: 10px;
+  color: #666;
+  font-size: 12px;
+}
+
+.icp-link {
+  color: #666;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.icp-link:hover {
+  color: #007bff;
 }
 </style>
