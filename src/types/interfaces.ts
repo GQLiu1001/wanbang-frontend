@@ -135,17 +135,18 @@ export interface User {
     id?: number; // 可选，因为新建时没有 id
     username: string;
     password?: string; // 可选，查询时可能不返回
-    phone: string;
+    phone?: string; // 改为可选
     avatar?: string;
     role_id?: string; // 查询时返回
+    role_key?: string; // 角色键名
     description?: string; // 查询时返回
 }
 //查询所有用户表单
 export interface UserList {
     id?: number; // 可选，因为新建时没有 id
     username: string;
-    phone: string;
     role_id?: string; // 查询时返回
+    role_key?: string; // 角色键名
     description?: string; // 查询时返回
 }
 // 分页查询参数
