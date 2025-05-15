@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getUsers, deleteUser } from '@/api/user';
-import type { User, PaginationParams, UserList } from '@/types/interfaces.ts';
+import type { User, PaginationParams, UserList } from '@/types/interfaces';
 import { useUserStore } from '@/stores/user';
 
 // Store user list and pagination state
@@ -120,7 +120,6 @@ onMounted(() => {
       <el-table :data="userList" style="width: 100%">
         <el-table-column prop="id" label="用户id" />
         <el-table-column prop="username" label="用户名" />
-        <el-table-column prop="phone" label="手机号" />
         <el-table-column prop="description" label="角色描述" />
         <!-- 使用计算属性控制整列显示 -->
         <el-table-column label="操作" v-if="hasDeletePermission">

@@ -7,10 +7,6 @@
         <el-input v-model="userForm.username" placeholder="请输入用户名" />
       </el-form-item>
 
-      <el-form-item label="电话" required>
-        <el-input v-model="userForm.phone" placeholder="请输入电话" maxlength="11" />
-      </el-form-item>
-
       <el-form-item label="旧密码">
         <el-input
             v-model="userForm.oldPassword"
@@ -51,6 +47,7 @@ import { onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';
 import { updateUser } from '@/api/user';
+import type { UpdateUserRequest } from '@/types/interfaces';
 import router from '@/router';
 
 // 获取当前用户信息
@@ -65,7 +62,6 @@ if (!currentUser) {
 // 用户表单数据 - 修改字段名与API一致
 const userForm = ref({
   username: currentUser?.username || '',
-  phone: currentUser?.phone || '',
   oldPassword: '',  // 旧密码
   password: '',     // 新密码 - 字段名改为与API匹配
   confirmPassword: '', // 确认密码 (前端验证用)
@@ -79,12 +75,6 @@ const submitUserInfo = async () => {
   try {
     if (!userForm.value.username) {
       ElMessage.error('用户名是必填项');
-      return;
-    }
-
-    const phoneRegex = /^1[3-9]\d{9}$/;
-    if (!userForm.value.phone || !phoneRegex.test(userForm.value.phone)) {
-      ElMessage.error('请输入有效的11位手机号码');
       return;
     }
 
@@ -113,14 +103,8 @@ const submitUserInfo = async () => {
     }
 
     // 构建提交数据 - 按API文档格式
-    const submitData: {
-      username: string;
-      phone: string;
-      oldPassword?: string;
-      password?: string;
-    } = {
+    const submitData: UpdateUserRequest = {
       username: userForm.value.username,
-      phone: userForm.value.phone,
     };
 
     // 如果用户修改了密码，添加密码字段
@@ -138,7 +122,6 @@ const submitUserInfo = async () => {
         ...currentUser,
         id: userId.value,
         username: userForm.value.username,
-        phone: userForm.value.phone,
         avatar: '',
       };
       userStore.setUserInfo(updatedUserInfo);
@@ -164,7 +147,6 @@ const submitUserInfo = async () => {
 const resetForm = () => {
   userForm.value = {
     username: currentUser?.username || '',
-    phone: currentUser?.phone || '',
     oldPassword: '',
     password: '',
     confirmPassword: '',

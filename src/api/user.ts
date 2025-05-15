@@ -1,5 +1,5 @@
-import axios from "@/utils/axios.ts";
-import type {User, PaginationParams, UpdateUserRequest} from "@/types/interfaces.ts";
+import axios from "@/utils/axios";
+import type {User, PaginationParams, UpdateUserRequest} from "@/types/interfaces";
 
 // user.ts
 // 修改用户信息

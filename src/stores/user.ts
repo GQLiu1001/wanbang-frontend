@@ -5,7 +5,7 @@ interface UserInfo {
     id?: number;
     username: string;
     avatar: string;
-    phone: string;
+    phone?: string;
     role_key?: string;
 }
 
