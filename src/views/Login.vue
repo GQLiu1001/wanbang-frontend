@@ -30,6 +30,11 @@
       <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" class="icp-link">
         蒙ICP备2025026241号
       </a>
+      <br/>
+      <a href="https://beian.mps.gov.cn/#/query/webSearch?code=15042902150591" rel="noreferrer" target="_blank" class="beian-link">
+        <img src="@/assets/备案图标.png" alt="公安备案图标" class="beian-icon" />
+        蒙公网安备15042902150591号
+      </a>
     </div>
   </div>
 </template>
@@ -248,5 +253,22 @@ h1 {
 
 .icp-link:hover {
   color: #007bff;
+}
+
+.beian-link {
+  color: #fff;
+  text-decoration: none;
+  transition: color 0.3s;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+}
+
+.beian-link:hover {
+  color: #007bff;
+}
+
+.beian-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 5px;
 }
 </style>

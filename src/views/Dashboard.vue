@@ -239,6 +239,11 @@ const toggleMobileMenu = () => {
           <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" class="icp-link">
             蒙ICP备2025026241号
           </a>
+          <span style="margin: 0 10px;">|</span>
+          <a href="https://beian.mps.gov.cn/#/query/webSearch?code=15042902150591" rel="noreferrer" target="_blank" class="beian-link">
+            <img src="@/assets/备案图标.png" alt="公安备案图标" class="beian-icon" />
+            蒙公网安备15042902150591号
+          </a>
         </div>
       </el-container>
     </el-container>
@@ -385,6 +390,24 @@ const toggleMobileMenu = () => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.icp-link, .beian-link {
+  color: #666;
+  text-decoration: none;
+  transition: color 0.3s;
+  display: inline-flex;
+  align-items: center;
+}
+
+.icp-link:hover, .beian-link:hover {
+  color: #007bff;
+}
+
+.beian-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 3px;
 }
 
 .el-menu {
